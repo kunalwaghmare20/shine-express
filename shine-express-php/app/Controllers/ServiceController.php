@@ -169,4 +169,85 @@ final class ServiceController extends Controller
         flash_success('Item added');
         $this->redirect('/admin/services/' . $id);
     }
+
+    public function editItemForm(string $id, string $itemId): void
+    {
+        $item = $this->findItem($id, $itemId);
+        if (!$item) {
+            flash_error('Item not found');
+            $this->redirect('/admin/services/' . $id);
+        }
+
+        $stmt = Database::connection()->prepare('SELECT id, name FROM services WHERE id = ?');
+        $stmt->execute([$id]);
+        $service = $stmt->fetch();
+
+        $this->view('services/item_form', [
+            'title' => 'Edit item',
+            'service' => $service,
+            'item' => $item,
+            'user' => Auth::user(),
+        ], 'layouts/dashboard');
+    }
+
+    public function updateItem(string $id, string $itemId): void
+    {
+        if (!verify_csrf(Request::input('_csrf'))) {
+            flash_error('Invalid token');
+            $this->redirect('/admin/services/' . $id . '/items/' . $itemId . '/edit');
+        }
+
+        if (!$this->findItem($id, $itemId)) {
+            flash_error('Item not found');
+            $this->redirect('/admin/services/' . $id);
+        }
+
+        Database::connection()->prepare(
+            'UPDATE service_items SET name=?, description=?, price=?, duration=?, sort_order=?, is_active=? WHERE id=? AND service_id=?'
+        )->execute([
+            Request::input('name'),
+            Request::input('description'),
+            Request::input('price'),
+            Request::input('duration') !== '' && Request::input('duration') !== null
+                ? (int) Request::input('duration')
+                : null,
+            (int) Request::input('sort_order', 0),
+            Request::input('is_active') ? 1 : 0,
+            $itemId,
+            $id,
+        ]);
+        flash_success('Item updated');
+        $this->redirect('/admin/services/' . $id);
+    }
+
+    public function deleteItem(string $id, string $itemId): void
+    {
+        if (!verify_csrf(Request::input('_csrf'))) {
+            flash_error('Invalid token');
+            $this->redirect('/admin/services/' . $id);
+        }
+
+        if (!$this->findItem($id, $itemId)) {
+            flash_error('Item not found');
+            $this->redirect('/admin/services/' . $id);
+        }
+
+        // Soft-deactivate so historical booking_items stay valid
+        Database::connection()->prepare(
+            'UPDATE service_items SET is_active = 0 WHERE id = ? AND service_id = ?'
+        )->execute([$itemId, $id]);
+        flash_success('Item deactivated');
+        $this->redirect('/admin/services/' . $id);
+    }
+
+    /** @return array<string, mixed>|null */
+    private function findItem(string $serviceId, string $itemId): ?array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT * FROM service_items WHERE id = ? AND service_id = ?'
+        );
+        $stmt->execute([$itemId, $serviceId]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
 }

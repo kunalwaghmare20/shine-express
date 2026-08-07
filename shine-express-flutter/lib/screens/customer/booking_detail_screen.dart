@@ -86,8 +86,21 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
                 const SizedBox(height: 8),
                 Text('When: ${b['scheduledDate']} ${b['scheduledTime'] ?? ''}'),
                 Text('Total: ₹${b['totalAmount']} (cash on completion)'),
-                if (b['address'] != null) Text('Address: ${b['address']}'),
+                if (b['address'] != null) Text('Address: ${_formatAddress(b['address'])}'),
                 if (b['customerNotes'] != null) Text('Notes: ${b['customerNotes']}'),
+                if (b['items'] is List && (b['items'] as List).isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Selected services', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ...(b['items'] as List).map((item) {
+                    final m = Map<String, dynamic>.from(item as Map);
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: Text(m['name']?.toString() ?? ''),
+                      trailing: Text('₹${m['price'] ?? ''}'),
+                    );
+                  }),
+                ],
                 if (error != null) Text(error!, style: const TextStyle(color: Colors.red)),
                 const Divider(height: 32),
                 const Text('Rate this service', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -111,5 +124,14 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
               ],
             ),
     );
+  }
+
+  String _formatAddress(dynamic address) {
+    if (address is String) return address;
+    if (address is Map) {
+      final m = Map<String, dynamic>.from(address);
+      return '${m['label'] ?? ''} — ${m['line1'] ?? ''}, ${m['city'] ?? ''}';
+    }
+    return address?.toString() ?? '';
   }
 }

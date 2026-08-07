@@ -22,17 +22,19 @@ $formAction = $adminMode ? url(($base ?? '/admin') . '/bookings') : url('/book')
         </label>
     <?php endif; ?>
 
-    <label>Service
-        <select name="service_id" id="service_id" required>
-            <option value="">Select service</option>
-            <?php foreach ($services as $s): ?>
-                <option value="<?= e($s['id']) ?>"><?= e($s['category_name'] . ' — ' . $s['name'] . ' (' . money_format_inr($s['base_price']) . ')') ?></option>
-            <?php endforeach; ?>
-        </select>
-    </label>
+    <fieldset>
+        <legend>Services (select one or more)</legend>
+        <?php foreach ($services as $s): ?>
+            <label class="check service-opt">
+                <input type="checkbox" name="service_ids[]" value="<?= e($s['id']) ?>" class="service-check">
+                <?= e($s['category_name'] . ' — ' . $s['name'] . ' (' . money_format_inr($s['base_price']) . ')') ?>
+            </label>
+        <?php endforeach; ?>
+    </fieldset>
 
     <fieldset>
-        <legend>Add-ons (optional)</legend>
+        <legend>Packages / items (optional)</legend>
+        <p class="muted small">Pick packages under the selected services. If none are picked, the service base price is used.</p>
         <div id="items">
             <?php foreach ($items as $item): ?>
                 <label class="check item-opt" data-service="<?= e($item['service_id']) ?>" style="display:none">
@@ -81,20 +83,40 @@ $formAction = $adminMode ? url(($base ?? '/admin') . '/bookings') : url('/book')
 </form>
 <script>
 (function () {
-  var select = document.getElementById('service_id');
+  var serviceChecks = document.querySelectorAll('.service-check');
   var opts = document.querySelectorAll('.item-opt');
+  var form = document.getElementById('book-form');
+
+  function selectedServiceIds() {
+    var ids = {};
+    serviceChecks.forEach(function (el) {
+      if (el.checked) ids[el.value] = true;
+    });
+    return ids;
+  }
+
   function syncItems() {
-    var id = select.value;
+    var ids = selectedServiceIds();
     opts.forEach(function (el) {
-      var on = el.getAttribute('data-service') === id;
+      var on = !!ids[el.getAttribute('data-service')];
       el.style.display = on ? 'block' : 'none';
       var input = el.querySelector('input');
       input.disabled = !on;
       if (!on) input.checked = false;
     });
   }
-  select.addEventListener('change', syncItems);
+
+  serviceChecks.forEach(function (el) {
+    el.addEventListener('change', syncItems);
+  });
   syncItems();
+
+  form.addEventListener('submit', function (e) {
+    if (Object.keys(selectedServiceIds()).length === 0) {
+      e.preventDefault();
+      alert('Please select at least one service');
+    }
+  });
 
   var customer = document.getElementById('customer_id');
   var address = document.getElementById('address_id');

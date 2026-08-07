@@ -48,10 +48,19 @@ final class ApiBookingController
         if (!is_array($itemIds)) {
             $itemIds = [];
         }
+        $serviceIds = Request::input('serviceIds', Request::input('service_ids', []));
+        if (!is_array($serviceIds)) {
+            $serviceIds = $serviceIds ? [$serviceIds] : [];
+        }
+        $single = Request::input('serviceId', Request::input('service_id'));
+        if ($serviceIds === [] && $single) {
+            $serviceIds = [(string) $single];
+        }
 
         try {
             $id = (new BookingService())->create([
-                'service_id' => (string) Request::input('serviceId', Request::input('service_id')),
+                'service_ids' => array_values(array_map('strval', $serviceIds)),
+                'service_id' => (string) ($serviceIds[0] ?? $single),
                 'address_id' => (string) Request::input('addressId', Request::input('address_id')),
                 'branch_id' => (string) Request::input('branchId', Request::input('branch_id')),
                 'scheduled_date' => (string) Request::input('scheduledDate', Request::input('scheduled_date')),
@@ -158,10 +167,13 @@ final class ApiBookingController
 
         $items = Database::connection()->prepare('SELECT name, price, quantity FROM booking_items WHERE booking_id = ?');
         $items->execute([$id]);
+        $itemRows = $items->fetchAll();
 
         $review = Database::connection()->prepare('SELECT rating, comment FROM reviews WHERE booking_id = ?');
         $review->execute([$id]);
         $rev = $review->fetch();
+
+        $itemNames = array_values(array_unique(array_map(fn ($i) => $i['name'], $itemRows)));
 
         return [
             'id' => $b['id'],
@@ -171,7 +183,8 @@ final class ApiBookingController
             'scheduledDate' => $b['scheduled_date'],
             'scheduledTime' => $b['scheduled_time'],
             'totalAmount' => (float) $b['total_amount'],
-            'serviceName' => $b['service_name'],
+            'serviceName' => count($itemNames) > 1 ? implode(', ', $itemNames) : $b['service_name'],
+            'serviceNames' => $itemNames,
             'customerNotes' => $b['customer_notes'],
             'address' => [
                 'label' => $b['address_label'],
@@ -185,7 +198,7 @@ final class ApiBookingController
                 'name' => $i['name'],
                 'price' => (float) $i['price'],
                 'quantity' => (int) $i['quantity'],
-            ], $items->fetchAll()),
+            ], $itemRows),
             'review' => $rev ? ['rating' => (int) $rev['rating'], 'comment' => $rev['comment']] : null,
             'canComplete' => $b['status'] === BookingStatus::STARTED,
             'canReview' => $b['status'] === BookingStatus::COMPLETED && !$rev,

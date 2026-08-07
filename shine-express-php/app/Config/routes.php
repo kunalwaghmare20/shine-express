@@ -64,6 +64,9 @@ $router->get('/admin/services/{id}', [ServiceController::class, 'show'], $admin)
 $router->get('/admin/services/{id}/edit', [ServiceController::class, 'editForm'], $admin);
 $router->post('/admin/services/{id}', [ServiceController::class, 'update'], $admin);
 $router->post('/admin/services/{id}/items', [ServiceController::class, 'storeItem'], $admin);
+$router->get('/admin/services/{id}/items/{itemId}/edit', [ServiceController::class, 'editItemForm'], $admin);
+$router->post('/admin/services/{id}/items/{itemId}', [ServiceController::class, 'updateItem'], $admin);
+$router->post('/admin/services/{id}/items/{itemId}/delete', [ServiceController::class, 'deleteItem'], $admin);
 $router->get('/admin/branches', [BranchController::class, 'index'], $admin);
 $router->get('/admin/branches/create', [BranchController::class, 'createForm'], $admin);
 $router->post('/admin/branches', [BranchController::class, 'store'], $admin);

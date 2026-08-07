@@ -15,8 +15,8 @@ class _BookScreenState extends State<BookScreen> {
   List services = [];
   List addresses = [];
   List branches = [];
-  String? serviceId;
-  String? packageId;
+  final Set<String> selectedServiceIds = {};
+  final Set<String> selectedItemIds = {};
   String? addressId;
   String? branchId;
   DateTime date = DateTime.now().add(const Duration(days: 1));
@@ -24,7 +24,6 @@ class _BookScreenState extends State<BookScreen> {
   final notes = TextEditingController();
   bool busy = false;
   String? error;
-  Map<String, dynamic>? serviceDetail;
 
   @override
   void initState() {
@@ -41,9 +40,9 @@ class _BookScreenState extends State<BookScreen> {
         services = (catalog['services'] as List?) ?? [];
         branches = (catalog['branches'] as List?) ?? [];
         addresses = addrs as List? ?? [];
-        if (services.isNotEmpty && serviceId == null) {
-          serviceId = services.first['id']?.toString();
-          _loadService();
+        if (services.isNotEmpty && selectedServiceIds.isEmpty) {
+          selectedServiceIds.add(services.first['id']?.toString() ?? '');
+          selectedServiceIds.remove('');
         }
         if (addresses.isNotEmpty && addressId == null) {
           addressId = addresses.first['id']?.toString();
@@ -57,21 +56,56 @@ class _BookScreenState extends State<BookScreen> {
     }
   }
 
-  Future<void> _loadService() async {
-    if (serviceId == null) return;
-    try {
-      final d = await context.read<ApiClient>().get('/api/v1/services/$serviceId');
-      setState(() {
-        serviceDetail = Map<String, dynamic>.from(d as Map);
-        final pkgs = (serviceDetail?['items'] as List?) ?? (serviceDetail?['packages'] as List?) ?? [];
-        packageId = pkgs.isNotEmpty ? pkgs.first['id']?.toString() : null;
-      });
-    } catch (_) {}
+  List get _visibleItems {
+    final items = <dynamic>[];
+    for (final s in services) {
+      final id = s['id']?.toString();
+      if (id == null || !selectedServiceIds.contains(id)) continue;
+      final pkgs = (s['items'] as List?) ?? [];
+      for (final p in pkgs) {
+        items.add({...Map<String, dynamic>.from(p as Map), 'serviceName': s['name']});
+      }
+    }
+    return items;
+  }
+
+  double get _estimate {
+    var total = 0.0;
+    final covered = <String>{};
+    for (final item in _visibleItems) {
+      final id = item['id']?.toString();
+      if (id == null || !selectedItemIds.contains(id)) continue;
+      total += (item['price'] as num?)?.toDouble() ?? 0;
+      covered.add(item['serviceId']?.toString() ?? '');
+    }
+    for (final s in services) {
+      final id = s['id']?.toString();
+      if (id == null || !selectedServiceIds.contains(id)) continue;
+      if (covered.contains(id)) continue;
+      total += (s['basePrice'] as num?)?.toDouble() ?? 0;
+    }
+    return total;
+  }
+
+  void _toggleService(String id, bool selected) {
+    setState(() {
+      if (selected) {
+        selectedServiceIds.add(id);
+      } else {
+        selectedServiceIds.remove(id);
+        for (final s in services) {
+          if (s['id']?.toString() != id) continue;
+          for (final p in (s['items'] as List?) ?? []) {
+            selectedItemIds.remove(p['id']?.toString());
+          }
+        }
+      }
+    });
   }
 
   Future<void> _submit() async {
-    if (serviceId == null || addressId == null) {
-      setState(() => error = 'Select service and address');
+    if (selectedServiceIds.isEmpty || addressId == null) {
+      setState(() => error = 'Select at least one service and an address');
       return;
     }
     setState(() {
@@ -80,13 +114,16 @@ class _BookScreenState extends State<BookScreen> {
     });
     try {
       final body = {
-        'serviceId': serviceId,
+        'serviceIds': selectedServiceIds.toList(),
+        'serviceId': selectedServiceIds.first,
         'addressId': addressId,
         if (branchId != null) 'branchId': branchId,
-        'scheduledDate': '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
-        'scheduledTime': '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00',
+        'scheduledDate':
+            '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}',
+        'scheduledTime':
+            '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00',
         'customerNotes': notes.text.trim(),
-        if (packageId != null) 'serviceItemIds': [packageId],
+        if (selectedItemIds.isNotEmpty) 'serviceItemIds': selectedItemIds.toList(),
       };
       final res = await context.read<ApiClient>().post('/api/v1/bookings', body: body) as Map;
       if (!mounted) return;
@@ -138,37 +175,52 @@ class _BookScreenState extends State<BookScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final packages = (serviceDetail?['items'] as List?) ?? (serviceDetail?['packages'] as List?) ?? [];
+    final packages = _visibleItems;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Book a service')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          DropdownButtonFormField<String>(
-            value: serviceId,
-            decoration: const InputDecoration(labelText: 'Service'),
-            items: services
-                .map((s) => DropdownMenuItem(value: s['id']?.toString(), child: Text(s['name']?.toString() ?? '')))
-                .toList(),
-            onChanged: (v) {
-              setState(() => serviceId = v);
-              _loadService();
-            },
-          ),
+          Text('Services', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text('Select one or more', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
+          const SizedBox(height: 8),
+          ...services.map((s) {
+            final id = s['id']?.toString() ?? '';
+            return CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: selectedServiceIds.contains(id),
+              title: Text(s['name']?.toString() ?? ''),
+              subtitle: Text('${s['categoryName'] ?? ''} · ₹${s['basePrice'] ?? ''}'),
+              onChanged: (v) => _toggleService(id, v == true),
+            );
+          }),
           if (packages.isNotEmpty) ...[
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              value: packageId,
-              decoration: const InputDecoration(labelText: 'Package / item'),
-              items: packages
-                  .map((p) => DropdownMenuItem(
-                        value: p['id']?.toString(),
-                        child: Text('${p['name']} · ₹${p['price'] ?? p['basePrice'] ?? ''}'),
-                      ))
-                  .toList(),
-              onChanged: (v) => setState(() => packageId = v),
-            ),
+            Text('Packages / items', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text('Optional — pick packages under selected services', style: TextStyle(color: AppTheme.muted, fontSize: 13)),
+            ...packages.map((p) {
+              final id = p['id']?.toString() ?? '';
+              return CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: selectedItemIds.contains(id),
+                title: Text(p['name']?.toString() ?? ''),
+                subtitle: Text('${p['serviceName'] ?? ''} · ₹${p['price'] ?? ''}'),
+                onChanged: (v) {
+                  setState(() {
+                    if (v == true) {
+                      selectedItemIds.add(id);
+                    } else {
+                      selectedItemIds.remove(id);
+                    }
+                  });
+                },
+              );
+            }),
           ],
           if (branches.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -206,7 +258,12 @@ class _BookScreenState extends State<BookScreen> {
             title: Text('Date: ${date.toLocal().toString().split(' ').first}'),
             trailing: const Icon(Icons.calendar_today),
             onTap: () async {
-              final d = await showDatePicker(context: context, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 90)), initialDate: date);
+              final d = await showDatePicker(
+                context: context,
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 90)),
+                initialDate: date,
+              );
               if (d != null) setState(() => date = d);
             },
           ),
@@ -220,6 +277,9 @@ class _BookScreenState extends State<BookScreen> {
             },
           ),
           TextField(controller: notes, decoration: const InputDecoration(labelText: 'Special instructions'), maxLines: 3),
+          const SizedBox(height: 8),
+          Text('Estimate (before tax): ₹${_estimate.toStringAsFixed(0)}',
+              style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.brandDark)),
           if (error != null) ...[
             const SizedBox(height: 8),
             Text(error!, style: const TextStyle(color: Colors.red)),

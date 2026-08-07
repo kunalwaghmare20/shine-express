@@ -50,10 +50,18 @@ final class BookingController extends Controller
         if (!is_array($itemIds)) {
             $itemIds = $itemIds ? [$itemIds] : [];
         }
+        $serviceIds = Request::input('service_ids');
+        if (!is_array($serviceIds)) {
+            $serviceIds = $serviceIds ? [$serviceIds] : [];
+        }
+        if ($serviceIds === [] && Request::input('service_id')) {
+            $serviceIds = [(string) Request::input('service_id')];
+        }
 
         try {
             $id = (new BookingService())->create([
-                'service_id' => (string) Request::input('service_id'),
+                'service_ids' => array_values($serviceIds),
+                'service_id' => $serviceIds[0] ?? (string) Request::input('service_id'),
                 'address_id' => (string) Request::input('address_id'),
                 'branch_id' => (string) Request::input('branch_id'),
                 'scheduled_date' => (string) Request::input('scheduled_date'),
@@ -195,10 +203,18 @@ final class BookingController extends Controller
         if (!is_array($itemIds)) {
             $itemIds = $itemIds ? [$itemIds] : [];
         }
+        $serviceIds = Request::input('service_ids');
+        if (!is_array($serviceIds)) {
+            $serviceIds = $serviceIds ? [$serviceIds] : [];
+        }
+        if ($serviceIds === [] && Request::input('service_id')) {
+            $serviceIds = [(string) Request::input('service_id')];
+        }
 
         try {
             $id = (new BookingService())->create([
-                'service_id' => (string) Request::input('service_id'),
+                'service_ids' => array_values($serviceIds),
+                'service_id' => $serviceIds[0] ?? (string) Request::input('service_id'),
                 'address_id' => (string) Request::input('address_id'),
                 'branch_id' => (string) Request::input('branch_id'),
                 'scheduled_date' => (string) Request::input('scheduled_date'),

@@ -20,7 +20,7 @@ final class BookingService extends BaseService
         $this->db = Database::connection();
     }
 
-    /** @param array{service_id:string,address_id:string,branch_id:string,scheduled_date:string,scheduled_time:string,customer_notes?:?string,service_item_ids?:list<string>,customer_id?:string} $input */
+    /** @param array{service_id?:string,service_ids?:list<string>,address_id:string,branch_id:string,scheduled_date:string,scheduled_time:string,customer_notes?:?string,service_item_ids?:list<string>,customer_id?:string} $input */
     public function create(array $input, string $actorUserId, ?string $forcedCustomerId = null): string
     {
         $customerId = $forcedCustomerId ?? ($input['customer_id'] ?? null);
@@ -28,10 +28,36 @@ final class BookingService extends BaseService
             throw new RuntimeException('Customer is required');
         }
 
-        $service = $this->fetchOne('SELECT * FROM services WHERE id = ? AND is_active = 1', [$input['service_id']]);
-        if (!$service) {
-            throw new RuntimeException('Service not available');
+        $serviceIds = array_values(array_unique(array_filter(
+            array_map('strval', $input['service_ids'] ?? []),
+            fn ($id) => $id !== ''
+        )));
+        if ($serviceIds === [] && !empty($input['service_id'])) {
+            $serviceIds = [(string) $input['service_id']];
         }
+        if ($serviceIds === []) {
+            throw new RuntimeException('Select at least one service');
+        }
+
+        $placeholders = implode(',', array_fill(0, count($serviceIds), '?'));
+        $stmt = $this->db->prepare(
+            "SELECT * FROM services WHERE is_active = 1 AND id IN ({$placeholders})"
+        );
+        $stmt->execute($serviceIds);
+        $services = $stmt->fetchAll();
+        if (count($services) !== count($serviceIds)) {
+            throw new RuntimeException('One or more services are not available');
+        }
+        $servicesById = [];
+        foreach ($services as $svc) {
+            $servicesById[$svc['id']] = $svc;
+        }
+        // Preserve selection order
+        $orderedServices = [];
+        foreach ($serviceIds as $sid) {
+            $orderedServices[] = $servicesById[$sid];
+        }
+        $primaryService = $orderedServices[0];
 
         $address = $this->fetchOne(
             'SELECT * FROM addresses WHERE id = ? AND customer_id = ?',
@@ -46,16 +72,26 @@ final class BookingService extends BaseService
             throw new RuntimeException('Branch not found');
         }
 
-        $itemIds = $input['service_item_ids'] ?? [];
+        $itemIds = array_values(array_unique(array_filter(
+            array_map('strval', $input['service_item_ids'] ?? []),
+            fn ($id) => $id !== ''
+        )));
         $lines = [];
+        $coveredServiceIds = [];
+
         if ($itemIds !== []) {
-            $placeholders = implode(',', array_fill(0, count($itemIds), '?'));
-            $stmt = $this->db->prepare(
-                "SELECT * FROM service_items WHERE service_id = ? AND is_active = 1 AND id IN ({$placeholders})"
+            $itemPlaceholders = implode(',', array_fill(0, count($itemIds), '?'));
+            $svcPlaceholders = implode(',', array_fill(0, count($serviceIds), '?'));
+            $itemStmt = $this->db->prepare(
+                "SELECT * FROM service_items
+                 WHERE is_active = 1
+                   AND id IN ({$itemPlaceholders})
+                   AND service_id IN ({$svcPlaceholders})"
             );
-            $stmt->execute(array_merge([$input['service_id']], $itemIds));
-            $selected = $stmt->fetchAll();
+            $itemStmt->execute(array_merge($itemIds, $serviceIds));
+            $selected = $itemStmt->fetchAll();
             foreach ($selected as $item) {
+                $coveredServiceIds[$item['service_id']] = true;
                 $lines[] = [
                     'service_item_id' => $item['id'],
                     'name' => $item['name'],
@@ -67,7 +103,11 @@ final class BookingService extends BaseService
             }
         }
 
-        if ($lines === []) {
+        // Services with no selected packages still add a base-price line
+        foreach ($orderedServices as $service) {
+            if (isset($coveredServiceIds[$service['id']])) {
+                continue;
+            }
             $lines[] = [
                 'service_item_id' => null,
                 'name' => $service['name'],
@@ -81,7 +121,8 @@ final class BookingService extends BaseService
         $subtotal = array_reduce($lines, fn ($s, $l) => $s + $l['price'] * $l['quantity'], 0.0);
         $taxAmount = round(($subtotal * self::TAX_RATE) / 100, 2);
         $total = $subtotal + $taxAmount;
-        $duration = array_reduce($lines, fn ($s, $l) => $s + ($l['duration'] ?: 0), 0) ?: (int) $service['duration'];
+        $duration = array_reduce($lines, fn ($s, $l) => $s + ($l['duration'] ?: 0), 0)
+            ?: (int) $primaryService['duration'];
 
         $bookingId = generate_id();
         $number = 'SE-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
@@ -90,7 +131,7 @@ final class BookingService extends BaseService
             'INSERT INTO bookings (id, booking_number, customer_id, branch_id, service_id, address_id, status, scheduled_date, scheduled_time, estimated_duration, customer_notes, subtotal, tax_rate, tax_amount, discount, total_amount)
              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)'
         )->execute([
-            $bookingId, $number, $customerId, $input['branch_id'], $input['service_id'], $input['address_id'],
+            $bookingId, $number, $customerId, $input['branch_id'], $primaryService['id'], $input['address_id'],
             BookingStatus::PENDING, $input['scheduled_date'], $input['scheduled_time'], $duration,
             $input['customer_notes'] ?? null, $subtotal, self::TAX_RATE, $taxAmount, $total,
         ]);
