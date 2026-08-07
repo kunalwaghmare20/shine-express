@@ -1,0 +1,2 @@
+# Deny web access to database folder
+Require all denied

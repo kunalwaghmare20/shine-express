@@ -1,0 +1,18 @@
+# Shine Express — public front controller
+# Used when traffic is rewritten from /shine-express/ into /public/
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /shine-express/public/
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Deny hidden files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Test · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      # Compile-only stubs — no live Clerk/DB required for CI build
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+      CLERK_SECRET_KEY: sk_test_ci_placeholder
+      NEXT_PUBLIC_CLERK_SIGN_IN_URL: /login
+      NEXT_PUBLIC_CLERK_SIGN_UP_URL: /register
+      NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: /admin
+      NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: /book
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit & integration tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build

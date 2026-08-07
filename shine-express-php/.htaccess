@@ -1,0 +1,23 @@
+# Shine Express — upload this folder to: public_html/shine-express/
+# Live URL: https://kdtechnoservices.com/shine-express
+
+Options -Indexes
+
+# Block sensitive files
+<FilesMatch "^\.env">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.(sql|md|log)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /shine-express/
+
+    # Never rewrite real public assets that were already routed
+    RewriteRule ^public/ - [L]
+
+    # Forward all requests into /public (keeps clean URLs without /public in the path)
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
