@@ -118,6 +118,26 @@ a { color: var(--brand); text-decoration: none; }
   margin-left: 0.5rem;
 }
 .btn-sm { padding: 0.45rem 0.85rem; font-size: 0.9rem; border-radius: 999px; }
+.btn-whatsapp {
+  background: #25d366;
+  color: #fff;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.btn-whatsapp:hover { background: #1da851; color: #fff; }
+.row-followup { background: #fef2f2; }
+.row-followup td { border-bottom-color: #fecaca; }
+.pill-danger { background: #fee2e2; color: #991b1b; font-weight: 600; }
+.panel-danger {
+  border-color: #fca5a5;
+  background: #fef2f2;
+  margin-bottom: 1rem;
+}
+.panel-danger strong { color: #991b1b; }
+a.wa-link { color: #128c41; font-weight: 600; }
+a.wa-link:hover { color: #0d6b32; }
 .muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
 .auth-body {

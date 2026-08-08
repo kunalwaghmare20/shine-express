@@ -15,6 +15,7 @@ import '../screens/customer/loyalty_screen.dart';
 import '../screens/customer/profile_screen.dart';
 import '../screens/customer/service_detail_screen.dart';
 import '../screens/customer/support_screen.dart';
+import '../screens/staff/earnings_screen.dart';
 import '../screens/staff/attendance_screen.dart';
 import '../screens/staff/job_detail_screen.dart';
 import '../screens/staff/jobs_screen.dart';
@@ -93,6 +94,9 @@ GoRouter createRouter(AuthProvider auth) {
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/staff/jobs', builder: (_, __) => const JobsScreen()),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(path: '/staff/earnings', builder: (_, __) => const StaffEarningsScreen()),
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/staff/attendance', builder: (_, __) => const AttendanceScreen()),

@@ -121,3 +121,70 @@ function slugify(string $value): string
     $value = preg_replace('/[^a-z0-9]+/', '-', $value) ?? '';
     return trim($value, '-') ?: 'item';
 }
+
+/** Normalize phone to digits; prepend 91 for 10-digit Indian mobiles. */
+function phone_digits(string $phone): string
+{
+    $digits = preg_replace('/\D+/', '', $phone) ?? '';
+    if (strlen($digits) === 10) {
+        return '91' . $digits;
+    }
+    return $digits;
+}
+
+/** Build a wa.me deep link or null when phone is missing. */
+function whatsapp_link(string $phone, string $message): ?string
+{
+    $digits = phone_digits($phone);
+    if ($digits === '') {
+        return null;
+    }
+    return 'https://wa.me/' . $digits . '?text=' . rawurlencode($message);
+}
+
+/** Pre-formatted WhatsApp message for a booking row. */
+function whatsapp_booking_message(array $booking): string
+{
+    $fullName = trim((string) ($booking['customer_name'] ?? 'Customer'));
+    $firstName = trim((string) ($booking['customer_first_name'] ?? ''));
+    if ($firstName === '' && $fullName !== '') {
+        $firstName = explode(' ', $fullName)[0];
+    }
+    if ($firstName === '') {
+        $firstName = 'there';
+    }
+
+    $number = (string) ($booking['booking_number'] ?? '');
+    $date = trim((string) ($booking['scheduled_date'] ?? '') . ' at ' . (string) ($booking['scheduled_time'] ?? ''));
+    $status = \App\Helpers\BookingStatus::label((string) ($booking['status'] ?? 'PENDING'));
+
+    return "Hello {$firstName}, your Shine Express booking #{$number} is {$status} for {$date}. Reply here if you have any questions.";
+}
+
+/** Great-circle distance in km between two WGS84 points, or null if any coordinate missing. */
+function haversine_km(?float $lat1, ?float $lon1, ?float $lat2, ?float $lon2): ?float
+{
+    if ($lat1 === null || $lon1 === null || $lat2 === null || $lon2 === null) {
+        return null;
+    }
+
+    $earthRadius = 6371.0;
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLon = deg2rad($lon2 - $lon1);
+    $a = sin($dLat / 2) ** 2
+        + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+
+    return $earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a));
+}
+
+function format_distance_km(?float $km): string
+{
+    if ($km === null) {
+        return 'Location unknown';
+    }
+    if ($km < 1) {
+        return round($km * 1000) . ' m away';
+    }
+
+    return round($km, 1) . ' km away';
+}

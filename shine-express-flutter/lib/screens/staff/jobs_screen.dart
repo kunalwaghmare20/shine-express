@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/staff_tab_refresh.dart';
 import '../../services/api_client.dart';
+import '../../services/staff_location_tracker.dart';
 
 class JobsScreen extends StatefulWidget {
   const JobsScreen({super.key});
@@ -69,6 +70,8 @@ class _JobsScreenState extends State<JobsScreen> {
         error = null;
         loading = false;
       });
+      final onTheWay = jobs.any((j) => (j as Map)['status']?.toString() == 'ON_THE_WAY');
+      await context.read<StaffLocationTracker>().setShouldTrack(onTheWay);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -113,11 +116,16 @@ class _JobsScreenState extends State<JobsScreen> {
                     itemCount: jobs.length,
                     itemBuilder: (_, i) {
                       final j = jobs[i] as Map;
+                      final itemCount = j['itemCount'] as int? ?? 0;
+                      final subtitle = StringBuffer()
+                        ..write('${j['status']} · ${j['scheduledDate']} ${j['scheduledTime'] ?? ''}');
+                      if (itemCount > 1) subtitle.write(' · $itemCount services');
+                      if (j['isPrimary'] == true) subtitle.write(' · Primary');
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         child: ListTile(
                           title: Text(j['serviceName']?.toString() ?? j['bookingNumber']?.toString() ?? ''),
-                          subtitle: Text('${j['status']} · ${j['scheduledDate']} ${j['scheduledTime'] ?? ''}\n${_addr(j)}'),
+                          subtitle: Text('${subtitle.toString()}\n${_addr(j)}'),
                           isThreeLine: true,
                           onTap: () async {
                             await context.push('/staff/job/${j['id']}');

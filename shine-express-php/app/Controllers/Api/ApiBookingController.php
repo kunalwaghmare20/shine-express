@@ -10,6 +10,8 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Helpers\BookingStatus;
 use App\Services\BookingService;
+use App\Services\PaymentService;
+use App\Services\ReviewEscalationService;
 use RuntimeException;
 
 final class ApiBookingController
@@ -37,8 +39,14 @@ final class ApiBookingController
 
     public function show(string $id): void
     {
-        $booking = $this->loadForCustomer($id);
-        ApiResponse::success($booking);
+        ApiResponse::success($this->loadForCustomer($id));
+    }
+
+    /** Lightweight staff location poll for live tracking map */
+    public function tracking(string $id): void
+    {
+        $booking = $this->rawBookingForCustomer($id);
+        ApiResponse::success($this->staffTracking((string) $booking['id'], (string) $booking['status']));
     }
 
     public function store(): void
@@ -119,6 +127,46 @@ final class ApiBookingController
         ApiResponse::success(null, 200, 'Review saved');
     }
 
+    /** Record UPI payment after customer completes UPI intent in the app */
+    public function payUpi(string $id): void
+    {
+        $booking = $this->rawBookingForCustomer($id);
+        $transactionRef = trim((string) Request::input('transactionRef', Request::input('transaction_ref', '')));
+        $transactionId = trim((string) Request::input('transactionId', Request::input('transaction_id', '')));
+        $status = strtoupper(trim((string) Request::input('status', 'SUCCESS')));
+
+        if ($transactionRef === '') {
+            ApiResponse::error('transactionRef is required', 422);
+        }
+        if (!in_array($status, ['SUCCESS', 'SUBMITTED', 'COMPLETED'], true)) {
+            ApiResponse::error('Payment was not completed', 400);
+        }
+
+        try {
+            $payment = (new PaymentService())->recordUpiPayment(
+                $id,
+                (string) $booking['customer_id'],
+                $transactionRef,
+                $transactionId !== '' ? $transactionId : null,
+                [
+                    'upiStatus' => $status,
+                    'response' => Request::input('response'),
+                ]
+            );
+            ApiResponse::success([
+                'payment' => $payment,
+                'booking' => $this->loadForCustomer($id),
+            ], 200, 'UPI payment recorded');
+        } catch (RuntimeException $e) {
+            ApiResponse::error($e->getMessage(), 400);
+        }
+    }
+
+    public function paymentConfig(): void
+    {
+        ApiResponse::success((new PaymentService())->publicConfig());
+    }
+
     private function upsertReview(string $bookingId, string $customerId, int $rating, mixed $comment): void
     {
         $db = Database::connection();
@@ -128,11 +176,19 @@ final class ApiBookingController
         if ($row) {
             $db->prepare('UPDATE reviews SET rating=?, comment=? WHERE id=?')
                 ->execute([$rating, $comment, $row['id']]);
-            return;
+        } else {
+            $db->prepare(
+                'INSERT INTO reviews (id, booking_id, customer_id, rating, comment) VALUES (?,?,?,?,?)'
+            )->execute([generate_id(), $bookingId, $customerId, $rating, $comment]);
         }
-        $db->prepare(
-            'INSERT INTO reviews (id, booking_id, customer_id, rating, comment) VALUES (?,?,?,?,?)'
-        )->execute([generate_id(), $bookingId, $customerId, $rating, $comment]);
+
+        if ($rating <= 2) {
+            (new ReviewEscalationService())->escalateIfLowRating(
+                $bookingId,
+                $rating,
+                is_string($comment) ? $comment : null
+            );
+        }
     }
 
     /** @return array<string, mixed> */
@@ -175,6 +231,33 @@ final class ApiBookingController
 
         $itemNames = array_values(array_unique(array_map(fn ($i) => $i['name'], $itemRows)));
 
+        $staffStmt = Database::connection()->prepare(
+            'SELECT CONCAT(u.first_name, " ", u.last_name) AS name, e.employee_code AS employeeCode,
+                    ba.is_primary AS isPrimary
+             FROM booking_assignments ba
+             JOIN employees e ON e.id = ba.employee_id
+             JOIN users u ON u.id = e.user_id
+             WHERE ba.booking_id = ? AND ba.rejected_at IS NULL
+             ORDER BY ba.is_primary DESC, u.first_name'
+        );
+        $staffStmt->execute([$id]);
+        $assignedStaff = array_map(fn ($s) => [
+            'name' => $s['name'],
+            'employeeCode' => $s['employeeCode'],
+            'isPrimary' => (bool) $s['isPrimary'],
+        ], $staffStmt->fetchAll());
+
+        $payment = (new PaymentService())->bookingPayment($id);
+        $payableStatuses = [
+            BookingStatus::CONFIRMED,
+            BookingStatus::ASSIGNED,
+            BookingStatus::ACCEPTED,
+            BookingStatus::ON_THE_WAY,
+            BookingStatus::STARTED,
+            BookingStatus::COMPLETED,
+        ];
+        $upiConfig = (new PaymentService())->publicConfig();
+
         return [
             'id' => $b['id'],
             'bookingNumber' => $b['booking_number'],
@@ -185,6 +268,10 @@ final class ApiBookingController
             'totalAmount' => (float) $b['total_amount'],
             'serviceName' => count($itemNames) > 1 ? implode(', ', $itemNames) : $b['service_name'],
             'serviceNames' => $itemNames,
+            'assignedStaff' => $assignedStaff,
+            'payment' => $payment,
+            'canPayUpi' => $payment === null && $upiConfig['enabled'] && in_array($b['status'], $payableStatuses, true),
+            'upi' => $upiConfig,
             'customerNotes' => $b['customer_notes'],
             'address' => [
                 'label' => $b['address_label'],
@@ -202,6 +289,47 @@ final class ApiBookingController
             'review' => $rev ? ['rating' => (int) $rev['rating'], 'comment' => $rev['comment']] : null,
             'canComplete' => $b['status'] === BookingStatus::STARTED,
             'canReview' => $b['status'] === BookingStatus::COMPLETED && !$rev,
+            'staffTracking' => $this->staffTracking($id, (string) $b['status']),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function staffTracking(string $bookingId, string $status): array
+    {
+        $trackable = [
+            BookingStatus::ACCEPTED,
+            BookingStatus::ON_THE_WAY,
+            BookingStatus::STARTED,
+        ];
+        if (!in_array($status, $trackable, true)) {
+            return ['active' => false];
+        }
+
+        $stmt = Database::connection()->prepare(
+            'SELECT e.current_latitude AS latitude, e.current_longitude AS longitude,
+                    e.location_updated_at AS updatedAt,
+                    CONCAT(u.first_name, " ", u.last_name) AS staffName
+             FROM booking_assignments ba
+             JOIN employees e ON e.id = ba.employee_id
+             JOIN users u ON u.id = e.user_id
+             WHERE ba.booking_id = ? AND ba.rejected_at IS NULL
+               AND e.current_latitude IS NOT NULL AND e.current_longitude IS NOT NULL
+             ORDER BY ba.is_primary DESC, e.location_updated_at DESC
+             LIMIT 1'
+        );
+        $stmt->execute([$bookingId]);
+        $row = $stmt->fetch();
+        if ($row === false) {
+            return ['active' => true, 'available' => false];
+        }
+
+        return [
+            'active' => true,
+            'available' => true,
+            'latitude' => (float) $row['latitude'],
+            'longitude' => (float) $row['longitude'],
+            'updatedAt' => $row['updatedAt'],
+            'staffName' => $row['staffName'],
         ];
     }
 }

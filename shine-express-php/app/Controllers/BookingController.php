@@ -106,19 +106,61 @@ final class BookingController extends Controller
         $staff = [];
         if (in_array(Auth::role(), ['SUPER_ADMIN', 'BRANCH_MANAGER'], true)) {
             $staffStmt = Database::connection()->prepare(
-                'SELECT e.id, e.employee_code, u.first_name, u.last_name
+                'SELECT e.id, e.employee_code, u.first_name, u.last_name,
+                        e.current_latitude, e.current_longitude, e.is_available, e.location_updated_at
                  FROM employees e JOIN users u ON u.id = e.user_id
-                 WHERE e.deleted_at IS NULL AND e.branch_id = ? ORDER BY u.first_name'
+                 WHERE e.deleted_at IS NULL AND e.branch_id = ? AND u.is_active = 1'
             );
             $staffStmt->execute([$booking['branch_id']]);
             $staff = $staffStmt->fetchAll();
+
+            $bookingLat = isset($booking['latitude']) ? (float) $booking['latitude'] : null;
+            $bookingLng = isset($booking['longitude']) ? (float) $booking['longitude'] : null;
+
+            foreach ($staff as &$member) {
+                $distance = haversine_km(
+                    $bookingLat,
+                    $bookingLng,
+                    isset($member['current_latitude']) ? (float) $member['current_latitude'] : null,
+                    isset($member['current_longitude']) ? (float) $member['current_longitude'] : null
+                );
+                $member['distance_km'] = $distance;
+                $member['distance_label'] = format_distance_km($distance);
+            }
+            unset($member);
+
+            usort($staff, static function (array $a, array $b): int {
+                $availA = !empty($a['is_available']) ? 0 : 1;
+                $availB = !empty($b['is_available']) ? 0 : 1;
+                if ($availA !== $availB) {
+                    return $availA <=> $availB;
+                }
+                $distA = $a['distance_km'] ?? PHP_FLOAT_MAX;
+                $distB = $b['distance_km'] ?? PHP_FLOAT_MAX;
+                if ($distA === $distB) {
+                    return strcmp($a['first_name'] ?? '', $b['first_name'] ?? '');
+                }
+                return $distA <=> $distB;
+            });
+        }
+
+        $assignmentRows = $assignments->fetchAll();
+        $assignedIds = array_map(fn ($a) => $a['employee_id'], $assignmentRows);
+        $primaryId = null;
+        foreach ($assignmentRows as $a) {
+            if (!empty($a['is_primary'])) {
+                $primaryId = $a['employee_id'];
+                break;
+            }
         }
 
         $this->view('bookings/show', [
             'title' => $booking['booking_number'],
             'booking' => $booking,
             'items' => $items->fetchAll(),
-            'assignments' => $assignments->fetchAll(),
+            'assignments' => $assignmentRows,
+            'assignedIds' => $assignedIds,
+            'primaryEmployeeId' => $primaryId,
             'history' => $history->fetchAll(),
             'staff' => $staff,
             'transitions' => BookingStatus::TRANSITIONS[$booking['status']] ?? [],
@@ -326,7 +368,9 @@ final class BookingController extends Controller
     private function listQuery(): array
     {
         $sql = 'SELECT b.*, s.name AS service_name,
-                       CONCAT(u.first_name, " ", u.last_name) AS customer_name
+                       CONCAT(u.first_name, " ", u.last_name) AS customer_name,
+                       u.first_name AS customer_first_name,
+                       u.phone AS customer_phone
                 FROM bookings b
                 JOIN services s ON s.id = b.service_id
                 JOIN customers c ON c.id = b.customer_id
@@ -352,7 +396,15 @@ final class BookingController extends Controller
             $params[] = $status;
         }
 
-        $sql .= ' ORDER BY b.created_at DESC LIMIT 100';
+        if (Request::input('followup') === '1') {
+            $sql .= ' AND b.requires_followup = 1';
+        }
+
+        if (in_array(Auth::role(), ['SUPER_ADMIN', 'BRANCH_MANAGER'], true)) {
+            $sql .= ' ORDER BY b.requires_followup DESC, b.created_at DESC LIMIT 100';
+        } else {
+            $sql .= ' ORDER BY b.created_at DESC LIMIT 100';
+        }
         return [$sql, $params];
     }
 
@@ -362,7 +414,9 @@ final class BookingController extends Controller
         $stmt = Database::connection()->prepare(
             'SELECT b.*, s.name AS service_name, br.name AS branch_name,
                     CONCAT(u.first_name, " ", u.last_name) AS customer_name,
-                    a.line1, a.city, a.state, a.pincode
+                    u.first_name AS customer_first_name,
+                    u.phone AS customer_phone,
+                    a.line1, a.city, a.state, a.pincode, a.latitude, a.longitude
              FROM bookings b
              JOIN services s ON s.id = b.service_id
              JOIN branches br ON br.id = b.branch_id
@@ -392,7 +446,8 @@ final class BookingController extends Controller
         if ($role === 'SERVICE_STAFF') {
             $emp = Auth::employee();
             $stmt = Database::connection()->prepare(
-                'SELECT 1 FROM booking_assignments WHERE booking_id = ? AND employee_id = ?'
+                'SELECT 1 FROM booking_assignments
+                 WHERE booking_id = ? AND employee_id = ? AND rejected_at IS NULL'
             );
             $stmt->execute([$booking['id'], $emp['id'] ?? '']);
             return (bool) $stmt->fetchColumn();

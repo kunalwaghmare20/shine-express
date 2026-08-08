@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'config/app_config.dart';
 import 'providers/auth_provider.dart';
@@ -6,10 +7,13 @@ import 'providers/staff_tab_refresh.dart';
 import 'providers/theme_controller.dart';
 import 'router/app_router.dart';
 import 'services/api_client.dart';
+import 'services/offline_job_sync_service.dart';
+import 'services/staff_location_tracker.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
   runApp(const ShineExpressApp());
 }
 
@@ -22,6 +26,8 @@ class ShineExpressApp extends StatefulWidget {
 
 class _ShineExpressAppState extends State<ShineExpressApp> {
   late final ApiClient _api = ApiClient();
+  late final OfflineJobSyncService _offlineSync = OfflineJobSyncService(_api);
+  late final StaffLocationTracker _locationTracker = StaffLocationTracker(_api);
   late final AuthProvider _auth = AuthProvider(_api);
   late final StaffTabRefresh _staffTabs = StaffTabRefresh();
   late final ThemeController _theme = ThemeController();
@@ -31,6 +37,7 @@ class _ShineExpressAppState extends State<ShineExpressApp> {
   void initState() {
     super.initState();
     _auth.bootstrap();
+    _offlineSync.init();
   }
 
   @override
@@ -38,6 +45,8 @@ class _ShineExpressAppState extends State<ShineExpressApp> {
     return MultiProvider(
       providers: [
         Provider.value(value: _api),
+        ChangeNotifierProvider.value(value: _offlineSync),
+        Provider.value(value: _locationTracker),
         ChangeNotifierProvider.value(value: _auth),
         ChangeNotifierProvider.value(value: _staffTabs),
         ChangeNotifierProvider.value(value: _theme),

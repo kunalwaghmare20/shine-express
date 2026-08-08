@@ -20,6 +20,7 @@ class StaffShell extends StatelessWidget {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Today'),
           NavigationDestination(icon: Icon(Icons.work_outline), selectedIcon: Icon(Icons.work), label: 'Jobs'),
+          NavigationDestination(icon: Icon(Icons.payments_outlined), selectedIcon: Icon(Icons.payments), label: 'Earnings'),
           NavigationDestination(icon: Icon(Icons.fingerprint), label: 'Attendance'),
           NavigationDestination(icon: Icon(Icons.event_busy), label: 'Leave'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profile'),

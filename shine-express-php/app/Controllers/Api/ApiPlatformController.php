@@ -167,6 +167,7 @@ final class ApiPlatformController
                 'phone' => env_file('SUPPORT_PHONE', '919673522737'),
                 'whatsapp' => env_file('SUPPORT_WHATSAPP', '919673522737'),
             ],
+            'payments' => (new \App\Services\PaymentService())->publicConfig(),
         ]);
     }
 
@@ -468,20 +469,121 @@ final class ApiPlatformController
         }
         $reason = (string) Request::input('reason', 'Rejected by staff');
         $db = Database::connection();
+
+        $assignment = $db->prepare(
+            'SELECT id, rejected_at FROM booking_assignments WHERE booking_id = ? AND employee_id = ?'
+        );
+        $assignment->execute([$bookingId, $emp['id']]);
+        $row = $assignment->fetch();
+        if ($row === false) {
+            ApiResponse::error('Job not assigned to you', 403);
+        }
+        if ($row['rejected_at'] !== null) {
+            ApiResponse::error('You have already declined this job', 400);
+        }
+
         $db->prepare(
             'UPDATE booking_assignments SET rejected_at = NOW(), rejection_reason = ? WHERE booking_id = ? AND employee_id = ?'
         )->execute([$reason, $bookingId, $emp['id']]);
 
-        try {
-            (new \App\Services\BookingService())->updateStatus(
-                $bookingId,
-                \App\Helpers\BookingStatus::REJECTED,
-                (string) ApiAuth::id(),
-                $reason
-            );
-        } catch (\Throwable $e) {
-            ApiResponse::error($e->getMessage(), 400);
+        $remaining = $db->prepare(
+            'SELECT COUNT(*) FROM booking_assignments WHERE booking_id = ? AND rejected_at IS NULL'
+        );
+        $remaining->execute([$bookingId]);
+        $activeCount = (int) $remaining->fetchColumn();
+
+        if ($activeCount === 0) {
+            try {
+                (new \App\Services\BookingService())->updateStatus(
+                    $bookingId,
+                    \App\Helpers\BookingStatus::REJECTED,
+                    (string) ApiAuth::id(),
+                    $reason
+                );
+            } catch (\Throwable $e) {
+                ApiResponse::error($e->getMessage(), 400);
+            }
+            ApiResponse::success(null, 200, 'Job rejected — all assigned staff declined');
+            return;
         }
-        ApiResponse::success(null, 200, 'Job rejected');
+
+        ApiResponse::success(
+            ['remainingStaff' => $activeCount],
+            200,
+            'You declined this job. Other assigned staff can still accept it.'
+        );
+    }
+
+    public function updateLocation(): void
+    {
+        $emp = ApiAuth::employee();
+        if (!$emp) {
+            ApiResponse::error('Employee profile missing', 404);
+        }
+
+        $latitude = Request::input('latitude');
+        $longitude = Request::input('longitude');
+        if ($latitude === null || $longitude === null || $latitude === '' || $longitude === '') {
+            ApiResponse::error('latitude and longitude are required', 422);
+        }
+
+        Database::connection()->prepare(
+            'UPDATE employees SET current_latitude = ?, current_longitude = ?, location_updated_at = NOW(3) WHERE id = ?'
+        )->execute([(float) $latitude, (float) $longitude, $emp['id']]);
+
+        ApiResponse::success([
+            'latitude' => (float) $latitude,
+            'longitude' => (float) $longitude,
+        ], 200, 'Location updated');
+    }
+
+    public function staffEarnings(): void
+    {
+        $emp = ApiAuth::employee();
+        if (!$emp) {
+            ApiResponse::error('Employee profile missing', 404);
+        }
+
+        $db = Database::connection();
+        $employeeId = $emp['id'];
+        $perJobBonus = (float) env_file('STAFF_PER_JOB_BONUS', 200);
+        $baseSalary = (float) ($emp['salary'] ?? 0);
+
+        $periods = [
+            'today' => 'DATE(b.updated_at) = CURDATE()',
+            'week' => 'b.updated_at >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)',
+            'month' => 'YEAR(b.updated_at) = YEAR(CURDATE()) AND MONTH(b.updated_at) = MONTH(CURDATE())',
+        ];
+
+        $result = [
+            'baseSalary' => $baseSalary,
+            'perJobBonus' => $perJobBonus,
+            'currency' => 'INR',
+        ];
+
+        foreach ($periods as $key => $where) {
+            $stmt = $db->prepare(
+                "SELECT COUNT(*) AS completedJobs, COALESCE(SUM(b.total_amount), 0) AS jobRevenue
+                 FROM booking_assignments ba
+                 JOIN bookings b ON b.id = ba.booking_id
+                 WHERE ba.employee_id = ? AND ba.rejected_at IS NULL AND b.status = 'COMPLETED'
+                   AND {$where}"
+            );
+            $stmt->execute([$employeeId]);
+            $row = $stmt->fetch();
+            $jobs = (int) ($row['completedJobs'] ?? 0);
+            $revenue = (float) ($row['jobRevenue'] ?? 0);
+            $result[$key] = [
+                'completedJobs' => $jobs,
+                'jobRevenue' => $revenue,
+                'estimatedEarnings' => round($jobs * $perJobBonus, 2),
+            ];
+        }
+
+        $dailyBase = $baseSalary > 0 ? round($baseSalary / 26, 2) : 0.0;
+        $result['dailyBaseEstimate'] = $dailyBase;
+        $result['month']['estimatedTotal'] = round($result['month']['estimatedEarnings'] + $dailyBase * 26, 2);
+
+        ApiResponse::success($result);
     }
 }

@@ -56,5 +56,11 @@
 	<string>Shine Express uses the camera for before/after job photos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Shine Express needs photo access for booking reference images.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>googlemaps</string>
+		<string>maps</string>
+	</array>
 </dict>
 </plist>

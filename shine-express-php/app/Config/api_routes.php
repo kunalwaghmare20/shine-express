@@ -42,7 +42,10 @@ $router->post('/api/v1/addresses/{id}/delete', [ApiAddressController::class, 'de
 
 $router->get('/api/v1/bookings', [ApiBookingController::class, 'index'], $apiCustomer);
 $router->post('/api/v1/bookings', [ApiBookingController::class, 'store'], $apiCustomer);
+$router->get('/api/v1/bookings/payment-config', [ApiBookingController::class, 'paymentConfig'], $apiCustomer);
+$router->get('/api/v1/bookings/{id}/tracking', [ApiBookingController::class, 'tracking'], $apiCustomer);
 $router->get('/api/v1/bookings/{id}', [ApiBookingController::class, 'show'], $apiCustomer);
+$router->post('/api/v1/bookings/{id}/pay-upi', [ApiBookingController::class, 'payUpi'], $apiCustomer);
 $router->post('/api/v1/bookings/{id}/complete', [ApiBookingController::class, 'complete'], $apiCustomer);
 $router->post('/api/v1/bookings/{id}/review', [ApiBookingController::class, 'review'], $apiCustomer);
 
@@ -51,6 +54,8 @@ $router->get('/api/v1/support/tickets', [ApiPlatformController::class, 'tickets'
 $router->post('/api/v1/support/tickets', [ApiPlatformController::class, 'createTicket'], $apiAuth);
 
 $router->get('/api/v1/staff/dashboard', [ApiPlatformController::class, 'staffDashboard'], $apiStaff);
+$router->get('/api/v1/staff/earnings', [ApiPlatformController::class, 'staffEarnings'], $apiStaff);
+$router->post('/api/v1/staff/location', [ApiPlatformController::class, 'updateLocation'], $apiStaff);
 $router->post('/api/v1/staff/attendance/check-in', [ApiPlatformController::class, 'checkIn'], $apiStaff);
 $router->post('/api/v1/staff/attendance/check-out', [ApiPlatformController::class, 'checkOut'], $apiStaff);
 $router->get('/api/v1/staff/leaves', [ApiPlatformController::class, 'leaves'], $apiStaff);

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../services/api_client.dart';
+import '../services/push_notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider(this._api);
@@ -39,6 +40,7 @@ class AuthProvider extends ChangeNotifier {
     employee = data['employee'] == null ? null : Map<String, dynamic>.from(data['employee'] as Map);
     customerId = data['customerId']?.toString();
     notifyListeners();
+    await PushNotificationService.registerIfAvailable(_api);
   }
 
   Future<void> login(String email, String password) async {
@@ -52,6 +54,7 @@ class AuthProvider extends ChangeNotifier {
     employee = data['employee'] == null ? null : Map<String, dynamic>.from(data['employee'] as Map);
     customerId = data['customerId']?.toString();
     notifyListeners();
+    await PushNotificationService.registerIfAvailable(_api);
   }
 
   Future<void> register(Map<String, dynamic> body) async {
@@ -61,6 +64,7 @@ class AuthProvider extends ChangeNotifier {
     customerId = data['customerId']?.toString();
     employee = null;
     notifyListeners();
+    await PushNotificationService.registerIfAvailable(_api);
   }
 
   Future<void> logout() async {

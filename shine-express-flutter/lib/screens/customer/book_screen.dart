@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../services/api_client.dart';
 import '../../theme/app_theme.dart';
+import 'address_map_picker_screen.dart';
 
 class BookScreen extends StatefulWidget {
   const BookScreen({super.key});
@@ -137,35 +138,20 @@ class _BookScreenState extends State<BookScreen> {
   }
 
   Future<void> _addAddress() async {
-    final label = TextEditingController(text: 'Home');
-    final line1 = TextEditingController();
-    final city = TextEditingController(text: 'City');
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New address'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: label, decoration: const InputDecoration(labelText: 'Label')),
-            TextField(controller: line1, decoration: const InputDecoration(labelText: 'Address line')),
-            TextField(controller: city, decoration: const InputDecoration(labelText: 'City')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Save')),
-        ],
-      ),
+    final picked = await Navigator.of(context).push<AddressPickResult>(
+      MaterialPageRoute(builder: (_) => const AddressMapPickerScreen()),
     );
-    if (ok != true || !mounted) return;
+    if (picked == null || !mounted) return;
     try {
       await context.read<ApiClient>().post('/api/v1/addresses', body: {
-        'label': label.text.trim(),
-        'line1': line1.text.trim(),
-        'city': city.text.trim(),
-        'latitude': 28.6139,
-        'longitude': 77.2090,
+        'label': picked.label,
+        'line1': picked.line1,
+        'city': picked.city,
+        if (picked.state != null) 'state': picked.state,
+        if (picked.pincode != null) 'pincode': picked.pincode,
+        'latitude': picked.latitude,
+        'longitude': picked.longitude,
+        'isDefault': addresses.isEmpty,
       });
       await _load();
     } catch (e) {
