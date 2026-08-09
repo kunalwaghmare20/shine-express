@@ -20,6 +20,7 @@ use App\Controllers\ProfileController;
 use App\Controllers\ReminderController;
 use App\Controllers\ReportController;
 use App\Controllers\ServiceController;
+use App\Controllers\WhatsAppBroadcastController;
 use App\Middleware\AuthMiddleware;
 
 $auth = [AuthMiddleware::class];
@@ -75,6 +76,12 @@ $router->post('/admin/branches/{id}', [BranchController::class, 'update'], $admi
 $router->get('/admin/reports', [ReportController::class, 'index'], $admin);
 $router->get('/admin/reminders', [ReminderController::class, 'index'], $admin);
 $router->post('/admin/reminders/run', [ReminderController::class, 'run'], $admin);
+$router->get('/admin/whatsapp-broadcast', [WhatsAppBroadcastController::class, 'index'], $admin);
+$router->get('/admin/whatsapp-broadcast/preview', [WhatsAppBroadcastController::class, 'preview'], $admin);
+$router->post('/admin/whatsapp-broadcast/preview', [WhatsAppBroadcastController::class, 'previewForm'], $admin);
+$router->post('/admin/whatsapp-broadcast/templates', [WhatsAppBroadcastController::class, 'saveTemplate'], $admin);
+$router->post('/admin/whatsapp-broadcast/templates/delete', [WhatsAppBroadcastController::class, 'deleteTemplate'], $admin);
+$router->post('/admin/whatsapp-broadcast/send', [WhatsAppBroadcastController::class, 'send'], $admin);
 
 // Branch manager
 $router->get('/branch-manager', [DashboardController::class, 'branchManager'], $manager);

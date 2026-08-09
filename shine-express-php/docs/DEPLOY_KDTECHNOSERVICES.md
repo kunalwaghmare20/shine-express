@@ -86,6 +86,9 @@ In **phpMyAdmin** → select your database → **Import**, run in order:
 3. `database/migrations/003_mobile_platform.sql` (OTP, loyalty, leave, etc.)
 4. `database/migrations/004_whatsapp_reminders.sql` (WhatsApp logs)
 5. `database/migrations/005_service_reminder_days.sql` (per-service rebook days)
+6. `database/migrations/006_booking_followup.sql` (low-rating follow-up flag — **required for Phase 3**)
+
+If the site is **already live**, you only need to run **new** migrations (e.g. `006_booking_followup.sql`) in phpMyAdmin → SQL tab — not the full list again.
 
 ---
 

@@ -28,12 +28,18 @@ $action = $isEdit ? url('/admin/services/' . $service['id']) : url('/admin/servi
         </span>
     </label>
     <label>Sort order<input type="number" name="sort_order" value="<?= e($isEdit ? (string) $service['sort_order'] : '0') ?>"></label>
-    <label>
+    <label class="form-switch">
         <input type="checkbox" name="is_active" value="1" <?= !$isEdit || !empty($service['is_active']) ? 'checked' : '' ?>>
-        Active
+        <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+        <span class="form-switch-label">
+            <strong>Active</strong>
+            <span class="muted small">Visible to customers when booking</span>
+        </span>
     </label>
-    <button class="btn" type="submit"><?= $isEdit ? 'Save changes' : 'Create' ?></button>
-    <?php if ($isEdit): ?>
-        <a class="btn btn-ghost" href="<?= e(url('/admin/services/' . $service['id'])) ?>">Cancel</a>
-    <?php endif; ?>
+    <div class="form-actions">
+        <button class="btn" type="submit"><?= $isEdit ? 'Save changes' : 'Create' ?></button>
+        <?php if ($isEdit): ?>
+            <a class="btn btn-ghost" href="<?= e(url('/admin/services/' . $service['id'])) ?>">Cancel</a>
+        <?php endif; ?>
+    </div>
 </form>

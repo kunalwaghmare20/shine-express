@@ -51,7 +51,13 @@ function url(string $path = '/'): string
 
 function asset(string $path): string
 {
-    return url('assets/' . ltrim($path, '/'));
+    $relative = 'assets/' . ltrim($path, '/');
+    $url = url($relative);
+    $file = (defined('PUBLIC_PATH') ? PUBLIC_PATH : dirname(__DIR__) . '/public') . '/' . $relative;
+    if (is_file($file)) {
+        $url .= '?v=' . (string) filemtime($file);
+    }
+    return $url;
 }
 
 function e(?string $value): string
@@ -187,4 +193,25 @@ function format_distance_km(?float $km): string
     }
 
     return round($km, 1) . ' km away';
+}
+
+/**
+ * Inline SVG icons for admin forms (stroke icons, currentColor).
+ */
+function ui_icon(string $name): string
+{
+    $stroke = 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
+    $icons = [
+        'users' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+        'user-check' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>',
+        'star' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+        'check-circle' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+        'send' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+        'package' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>',
+        'map-pin' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+        'alert' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+        'toggle' => '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" ' . $stroke . '><rect x="1" y="5" width="22" height="14" rx="7" ry="7"/><circle cx="8" cy="12" r="3"/></svg>',
+    ];
+
+    return $icons[$name] ?? '';
 }

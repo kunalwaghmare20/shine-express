@@ -18,11 +18,15 @@
             <label>Duration (minutes)<input type="number" name="duration" value="<?= e((string) ($item['duration'] ?? '')) ?>"></label>
             <label>Sort order<input type="number" name="sort_order" value="<?= e((string) ($item['sort_order'] ?? 0)) ?>"></label>
         </div>
-        <label class="check">
+        <label class="form-switch">
             <input type="checkbox" name="is_active" value="1" <?= !empty($item['is_active']) ? 'checked' : '' ?>>
-            Active (visible to customers)
+            <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+            <span class="form-switch-label">
+                <strong>Active</strong>
+                <span class="muted small">Visible to customers</span>
+            </span>
         </label>
-        <div class="actions">
+        <div class="form-actions">
             <button class="btn" type="submit">Save item</button>
             <a class="btn btn-ghost" href="<?= e(url('/admin/services/' . $service['id'])) ?>">Cancel</a>
         </div>

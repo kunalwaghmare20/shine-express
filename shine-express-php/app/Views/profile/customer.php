@@ -23,7 +23,14 @@
             <label>City<input name="city" required></label>
             <label>State<input name="state" required></label>
         </div>
-        <label><input type="checkbox" name="is_default" value="1"> Default</label>
+        <label class="form-switch">
+            <input type="checkbox" name="is_default" value="1">
+            <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+            <span class="form-switch-label">
+                <strong>Default address</strong>
+                <span class="muted small">Use this address for new bookings</span>
+            </span>
+        </label>
         <button class="btn btn-sm" type="submit">Save address</button>
     </form>
 </section>

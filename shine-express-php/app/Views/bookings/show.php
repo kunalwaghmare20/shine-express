@@ -82,23 +82,37 @@ $actionBase = $base !== '' ? $base . '/bookings/' . $booking['id'] : '/bookings/
     <p class="muted small">Employees are sorted by nearest available GPS location to the customer address.</p>
     <form method="post" action="<?= e(url($actionBase . '/assign')) ?>" class="stack-form">
         <?= csrf_field() ?>
+        <div class="assign-list">
         <?php foreach ($staff as $s): ?>
             <?php $checked = in_array($s['id'], $assignedIds ?? [], true); ?>
-            <div class="grid-2" style="align-items:center">
-                <label class="check">
+            <div class="assign-row">
+                <label class="choice-option choice-option--compact">
                     <input type="checkbox" name="employee_ids[]" value="<?= e($s['id']) ?>" <?= $checked ? 'checked' : '' ?>>
-                    <?= e($s['first_name'] . ' ' . $s['last_name'] . ' (' . $s['employee_code'] . ')') ?>
-                    <span class="muted small"> · <?= e(format_distance_km(isset($s['distance_km']) ? (float) $s['distance_km'] : null)) ?></span>
-                    <?php if (empty($s['is_available'])): ?><span class="pill">Busy</span><?php endif; ?>
+                    <span class="choice-option-body">
+                        <span class="choice-option-title">
+                            <?= e($s['first_name'] . ' ' . $s['last_name'] . ' (' . $s['employee_code'] . ')') ?>
+                            <?php if (empty($s['is_available'])): ?><span class="pill">Busy</span><?php endif; ?>
+                        </span>
+                        <span class="choice-option-desc choice-option-meta">
+                            <span class="choice-option-meta-icon"><?= ui_icon('map-pin') ?></span>
+                            <?= e(format_distance_km(isset($s['distance_km']) ? (float) $s['distance_km'] : null)) ?>
+                        </span>
+                    </span>
                 </label>
-                <label class="check">
+                <label class="choice-option choice-option--compact choice-option--primary">
                     <input type="radio" name="primary_employee_id" value="<?= e($s['id']) ?>"
                         <?= ($primaryEmployeeId ?? '') === $s['id'] ? 'checked' : '' ?>>
-                    Primary contact
+                    <span class="choice-option-icon"><?= ui_icon('star') ?></span>
+                    <span class="choice-option-body">
+                        <span class="choice-option-title">Primary contact</span>
+                    </span>
                 </label>
             </div>
         <?php endforeach; ?>
-        <button class="btn btn-sm" type="submit">Assign selected</button>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-sm" type="submit">Assign selected</button>
+        </div>
     </form>
 </section>
 <?php endif; ?>

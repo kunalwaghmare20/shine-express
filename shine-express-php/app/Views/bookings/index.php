@@ -8,9 +8,9 @@
         </select>
         <button class="btn btn-sm" type="submit">Filter</button>
         <?php if (in_array(($user['role'] ?? ''), ['SUPER_ADMIN', 'BRANCH_MANAGER'], true)): ?>
-            <label class="check" style="margin-left:0.5rem">
+            <label class="toolbar-chip">
                 <input type="checkbox" name="followup" value="1" <?= (\App\Core\Request::input('followup') === '1') ? 'checked' : '' ?>>
-                Follow-up only
+                <?= ui_icon('alert') ?> Follow-up only
             </label>
         <?php endif; ?>
     </form>

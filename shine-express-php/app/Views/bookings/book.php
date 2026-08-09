@@ -22,24 +22,34 @@ $formAction = $adminMode ? url(($base ?? '/admin') . '/bookings') : url('/book')
         </label>
     <?php endif; ?>
 
-    <fieldset>
-        <legend>Services (select one or more)</legend>
+    <fieldset class="form-fieldset">
+        <legend>Services</legend>
+        <p class="fieldset-help muted small">Select one or more services for this booking.</p>
+        <div class="choice-group">
         <?php foreach ($services as $s): ?>
-            <label class="check service-opt">
+            <label class="service-opt choice-option choice-option--compact">
                 <input type="checkbox" name="service_ids[]" value="<?= e($s['id']) ?>" class="service-check">
-                <?= e($s['category_name'] . ' — ' . $s['name'] . ' (' . money_format_inr($s['base_price']) . ')') ?>
+                <span class="choice-option-icon"><?= ui_icon('package') ?></span>
+                <span class="choice-option-body">
+                    <span class="choice-option-title"><?= e($s['category_name'] . ' — ' . $s['name']) ?></span>
+                    <span class="choice-option-desc"><?= e(money_format_inr($s['base_price'])) ?></span>
+                </span>
             </label>
         <?php endforeach; ?>
+        </div>
     </fieldset>
 
-    <fieldset>
-        <legend>Packages / items (optional)</legend>
-        <p class="muted small">Pick packages under the selected services. If none are picked, the service base price is used.</p>
-        <div id="items">
+    <fieldset class="form-fieldset">
+        <legend>Packages / items</legend>
+        <p class="fieldset-help muted small">Optional add-ons under selected services. If none are picked, the service base price is used.</p>
+        <div id="items" class="choice-group">
             <?php foreach ($items as $item): ?>
-                <label class="check item-opt" data-service="<?= e($item['service_id']) ?>" style="display:none">
+                <label class="item-opt choice-option choice-option--compact" data-service="<?= e($item['service_id']) ?>" style="display:none">
                     <input type="checkbox" name="service_item_ids[]" value="<?= e($item['id']) ?>" disabled>
-                    <?= e($item['name'] . ' — ' . money_format_inr($item['price'])) ?>
+                    <span class="choice-option-body">
+                        <span class="choice-option-title"><?= e($item['name']) ?></span>
+                        <span class="choice-option-desc"><?= e(money_format_inr($item['price'])) ?></span>
+                    </span>
                 </label>
             <?php endforeach; ?>
         </div>
@@ -77,9 +87,11 @@ $formAction = $adminMode ? url(($base ?? '/admin') . '/bookings') : url('/book')
         <label>Time<input type="time" name="scheduled_time" required value="10:00"></label>
     </div>
     <label>Notes<textarea name="customer_notes" rows="3"></textarea></label>
-    <button class="btn" type="submit" <?= (!$adminMode && $addresses === []) ? 'disabled' : '' ?>>
-        <?= $adminMode ? 'Create booking' : 'Create booking' ?>
-    </button>
+    <div class="form-actions">
+        <button class="btn" type="submit" <?= (!$adminMode && $addresses === []) ? 'disabled' : '' ?>>
+            <?= $adminMode ? 'Create booking' : 'Create booking' ?>
+        </button>
+    </div>
 </form>
 <script>
 (function () {
@@ -99,7 +111,7 @@ $formAction = $adminMode ? url(($base ?? '/admin') . '/bookings') : url('/book')
     var ids = selectedServiceIds();
     opts.forEach(function (el) {
       var on = !!ids[el.getAttribute('data-service')];
-      el.style.display = on ? 'block' : 'none';
+      el.style.display = on ? 'flex' : 'none';
       var input = el.querySelector('input');
       input.disabled = !on;
       if (!on) input.checked = false;
