@@ -23,16 +23,20 @@
     </div>
     <div class="grid-2">
         <label>Pincode<input name="pincode" value="<?= e((string) ($branch['pincode'] ?? '')) ?>"></label>
-        <label>Active
-            <select name="is_active">
-                <option value="1" <?= (($branch['is_active'] ?? 1) ? 'selected' : '') ?>>Yes</option>
-                <option value="0" <?= (isset($branch['is_active']) && !$branch['is_active'] ? 'selected' : '') ?>>No</option>
-            </select>
-        </label>
     </div>
+    <label class="form-switch">
+        <input type="checkbox" name="is_active" value="1" <?= !isset($branch['is_active']) || !empty($branch['is_active']) ? 'checked' : '' ?>>
+        <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+        <span class="form-switch-label">
+            <strong>Active branch</strong>
+            <span class="muted small">Branch appears in booking and staff assignment</span>
+        </span>
+    </label>
     <div class="grid-2">
         <label>Latitude<input name="latitude" value="<?= e((string) ($branch['latitude'] ?? '')) ?>"></label>
         <label>Longitude<input name="longitude" value="<?= e((string) ($branch['longitude'] ?? '')) ?>"></label>
     </div>
-    <button class="btn" type="submit"><?= $isEdit ? 'Save changes' : 'Create branch' ?></button>
+    <div class="form-actions">
+        <button class="btn" type="submit"><?= $isEdit ? 'Save changes' : 'Create branch' ?></button>
+    </div>
 </form>

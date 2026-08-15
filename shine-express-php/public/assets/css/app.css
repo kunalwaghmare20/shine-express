@@ -259,9 +259,7 @@ button.link-btn, .link-btn {
 }
 .stack-form input:not([type="checkbox"]):not([type="radio"]),
 .stack-form select,
-.stack-form textarea,
-.inline-form input:not([type="checkbox"]):not([type="radio"]),
-.inline-form select {
+.stack-form textarea {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -269,6 +267,18 @@ button.link-btn, .link-btn {
   font: inherit;
   background: #fff;
 }
+.inline-form input:not([type="checkbox"]):not([type="radio"]),
+.inline-form select {
+  width: auto;
+  min-width: 10rem;
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.55rem 0.75rem;
+  font: inherit;
+  background: #fff;
+}
+.inline-form input[type="search"] { min-width: 14rem; flex: 1 1 14rem; }
 .stack-form input:not([type="checkbox"]):not([type="radio"]):focus,
 .stack-form select:focus,
 .stack-form textarea:focus,
@@ -608,3 +618,40 @@ fieldset:not(.form-fieldset) {
 .actions-cell a { margin-right: 0.75rem; }
 .page-head { margin-bottom: 1rem; }
 .table { width: 100%; border-collapse: collapse; }
+.form-switch-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 720px) { .form-switch-grid { grid-template-columns: 1fr; } }
+.stack-form h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--brand-dark);
+}
+.form-section-title {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--brand-dark);
+}
+.form-hint {
+  display: block;
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.35rem;
+}
+.inline-form-bar {
+  padding: 0.85rem;
+  background: #f8fcff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  gap: 0.65rem;
+}
+.inline-form-bar select { min-width: 12rem; }
+.inline-form-bar input[name="notes"] { min-width: 14rem; flex: 1 1 14rem; }
+.form-panel-nested {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}

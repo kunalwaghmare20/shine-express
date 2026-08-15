@@ -29,6 +29,21 @@ final class ApiAddressController
     public function store(): void
     {
         $customerId = ApiAuth::customerId();
+        $line1 = trim((string) Request::input('line1'));
+        $city = trim((string) Request::input('city'));
+        if ($line1 === '' || $city === '') {
+            ApiResponse::error('Building and city are required', 422);
+        }
+
+        $state = trim((string) Request::input('state', 'Maharashtra'));
+        if ($state === '') {
+            $state = 'Maharashtra';
+        }
+        $pincode = trim((string) Request::input('pincode', ''));
+        if ($pincode === '') {
+            $pincode = '000000';
+        }
+
         $id = generate_id();
         $isDefault = Request::input('isDefault') ? 1 : 0;
 
@@ -44,11 +59,11 @@ final class ApiAddressController
             $id,
             $customerId,
             Request::input('label', 'Home'),
-            Request::input('line1'),
+            $line1,
             Request::input('line2'),
-            Request::input('city'),
-            Request::input('state'),
-            Request::input('pincode'),
+            $city,
+            $state,
+            $pincode,
             Request::input('country', 'India'),
             Request::input('latitude'),
             Request::input('longitude'),
@@ -68,6 +83,21 @@ final class ApiAddressController
             ApiResponse::error('Address not found', 404);
         }
 
+        $line1 = trim((string) Request::input('line1'));
+        $city = trim((string) Request::input('city'));
+        if ($line1 === '' || $city === '') {
+            ApiResponse::error('Building and city are required', 422);
+        }
+
+        $state = trim((string) Request::input('state', 'Maharashtra'));
+        if ($state === '') {
+            $state = 'Maharashtra';
+        }
+        $pincode = trim((string) Request::input('pincode', ''));
+        if ($pincode === '') {
+            $pincode = '000000';
+        }
+
         $isDefault = Request::input('isDefault') ? 1 : 0;
         if ($isDefault) {
             $db->prepare('UPDATE addresses SET is_default = 0 WHERE customer_id = ?')->execute([$customerId]);
@@ -78,11 +108,11 @@ final class ApiAddressController
              WHERE id=? AND customer_id=?'
         )->execute([
             Request::input('label', 'Home'),
-            Request::input('line1'),
+            $line1,
             Request::input('line2'),
-            Request::input('city'),
-            Request::input('state'),
-            Request::input('pincode'),
+            $city,
+            $state,
+            $pincode,
             Request::input('country', 'India'),
             Request::input('latitude'),
             Request::input('longitude'),

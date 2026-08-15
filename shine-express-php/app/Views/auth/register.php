@@ -8,6 +8,8 @@
     <label>Email<input type="email" name="email" required value="<?= e((string) old('email')) ?>"></label>
     <label>Phone<input name="phone" value="<?= e((string) old('phone')) ?>"></label>
     <label>Password<input type="password" name="password" required minlength="6"></label>
-    <button class="btn" type="submit">Register</button>
+    <div class="form-actions">
+        <button class="btn" type="submit">Register</button>
+    </div>
 </form>
 <p class="muted">Already have an account? <a href="<?= e(url('/login')) ?>">Sign in</a></p>

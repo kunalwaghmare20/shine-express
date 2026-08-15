@@ -11,7 +11,7 @@
 <div class="panel" style="margin-bottom:1rem">
     <p><strong>Status:</strong> <?= $enabled ? 'Enabled' : 'Disabled' ?> · Provider: <code><?= e($provider) ?></code></p>
     <p class="muted">Set reminder days on each service under <a href="<?= e(url('/admin/services')) ?>">Services</a> (Add / Edit).</p>
-    <form method="post" action="<?= e(url('/admin/reminders/run')) ?>">
+    <form method="post" action="<?= e(url('/admin/reminders/run')) ?>" class="inline-form">
         <?= csrf_field() ?>
         <button class="btn" type="submit">Send due rebook reminders now</button>
     </form>

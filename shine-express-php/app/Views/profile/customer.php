@@ -12,7 +12,7 @@
     </ul>
     <form method="post" action="<?= e(url('/profile/addresses')) ?>" class="stack-form" style="margin-top:1rem">
         <?= csrf_field() ?>
-        <h4>Add address</h4>
+        <h4 class="form-section-title">Add address</h4>
         <div class="grid-2">
             <label>Label<input name="label" value="Home" required></label>
             <label>Pincode<input name="pincode" required></label>
@@ -31,6 +31,8 @@
                 <span class="muted small">Use this address for new bookings</span>
             </span>
         </label>
-        <button class="btn btn-sm" type="submit">Save address</button>
+        <div class="form-actions">
+            <button class="btn btn-sm" type="submit">Save address</button>
+        </div>
     </form>
 </section>

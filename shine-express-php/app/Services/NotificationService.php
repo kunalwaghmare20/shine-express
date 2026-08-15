@@ -19,7 +19,8 @@ final class NotificationService extends BaseService
         $this->fcm = new FcmService();
     }
 
-    public function notify(string $userId, string $title, string $body, string $type = 'GENERAL', array $metadata = []): void
+    /** @return array{attempted:int,sent:int,failed:int,skipped_reason:?string} */
+    public function notify(string $userId, string $title, string $body, string $type = 'GENERAL', array $metadata = []): array
     {
         $this->db->prepare(
             'INSERT INTO notifications (id, user_id, title, body, type, channel, metadata, sent_at)
@@ -34,7 +35,7 @@ final class NotificationService extends BaseService
         ]);
 
         $data = array_map('strval', array_merge(['type' => $type], $metadata));
-        $this->fcm->sendToUser($userId, $title, $body, $data);
+        return $this->fcm->sendToUser($userId, $title, $body, $data);
     }
 
     public function bookingCreated(string $bookingId): void

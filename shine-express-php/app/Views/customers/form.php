@@ -12,11 +12,15 @@
     </label>
     <label>GST<input name="gst_number" value="<?= e((string) ($customer['gst_number'] ?? '')) ?>"></label>
     <label>Notes<textarea name="notes" rows="3"><?= e((string) ($customer['notes'] ?? '')) ?></textarea></label>
-    <label>Active
-        <select name="is_active">
-            <option value="1" <?= (($customer['is_active'] ?? 1) ? 'selected' : '') ?>>Yes</option>
-            <option value="0" <?= (isset($customer['is_active']) && !$customer['is_active'] ? 'selected' : '') ?>>No</option>
-        </select>
+    <label class="form-switch">
+        <input type="checkbox" name="is_active" value="1" <?= !isset($customer['is_active']) || !empty($customer['is_active']) ? 'checked' : '' ?>>
+        <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+        <span class="form-switch-label">
+            <strong>Active customer</strong>
+            <span class="muted small">Customer can sign in and book services</span>
+        </span>
     </label>
-    <button class="btn" type="submit"><?= $isEdit ? 'Save changes' : 'Create customer' ?></button>
+    <div class="form-actions">
+        <button class="btn" type="submit"><?= $isEdit ? 'Save changes' : 'Create customer' ?></button>
+    </div>
 </form>

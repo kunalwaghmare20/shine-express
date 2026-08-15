@@ -28,6 +28,7 @@ $router->post('/api/v1/auth/reset-password', [ApiPlatformController::class, 'res
 $router->get('/api/v1/auth/me', [ApiAuthController::class, 'me'], $apiAuth);
 $router->post('/api/v1/auth/logout', [ApiAuthController::class, 'logout'], $apiAuth);
 $router->post('/api/v1/auth/profile', [ApiAuthController::class, 'updateProfile'], $apiAuth);
+$router->post('/api/v1/auth/change-password', [ApiAuthController::class, 'changePassword'], $apiAuth);
 $router->post('/api/v1/devices', [ApiPlatformController::class, 'registerDevice'], $apiAuth);
 
 $router->get('/api/v1/home', [ApiPlatformController::class, 'home'], $apiAuth);

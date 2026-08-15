@@ -40,19 +40,25 @@ $action = $isEdit
     <?php else: ?>
         <input type="hidden" name="branch_id" value="<?= e((string) $defaultBranch) ?>">
     <?php endif; ?>
-    <div class="grid-2">
-        <label>Active
-            <select name="is_active">
-                <option value="1" <?= (($employee['is_active'] ?? 1) ? 'selected' : '') ?>>Yes</option>
-                <option value="0" <?= (isset($employee['is_active']) && !$employee['is_active'] ? 'selected' : '') ?>>No</option>
-            </select>
+    <div class="form-switch-grid">
+        <label class="form-switch">
+            <input type="checkbox" name="is_active" value="1" <?= !isset($employee['is_active']) || !empty($employee['is_active']) ? 'checked' : '' ?>>
+            <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+            <span class="form-switch-label">
+                <strong>Active account</strong>
+                <span class="muted small">Staff can sign in when enabled</span>
+            </span>
         </label>
-        <label>Available
-            <select name="is_available">
-                <option value="1" <?= (($employee['is_available'] ?? 1) ? 'selected' : '') ?>>Yes</option>
-                <option value="0" <?= (isset($employee['is_available']) && !$employee['is_available'] ? 'selected' : '') ?>>No</option>
-            </select>
+        <label class="form-switch">
+            <input type="checkbox" name="is_available" value="1" <?= !isset($employee['is_available']) || !empty($employee['is_available']) ? 'checked' : '' ?>>
+            <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+            <span class="form-switch-label">
+                <strong>Available for jobs</strong>
+                <span class="muted small">Shown as available for new assignments</span>
+            </span>
         </label>
     </div>
-    <button class="btn" type="submit"><?= $isEdit ? 'Save changes' : 'Create employee' ?></button>
+    <div class="form-actions">
+        <button class="btn" type="submit"><?= $isEdit ? 'Save changes' : 'Create employee' ?></button>
+    </div>
 </form>

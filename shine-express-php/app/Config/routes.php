@@ -20,6 +20,7 @@ use App\Controllers\ProfileController;
 use App\Controllers\ReminderController;
 use App\Controllers\ReportController;
 use App\Controllers\ServiceController;
+use App\Controllers\PushBroadcastController;
 use App\Controllers\WhatsAppBroadcastController;
 use App\Middleware\AuthMiddleware;
 
@@ -82,6 +83,12 @@ $router->post('/admin/whatsapp-broadcast/preview', [WhatsAppBroadcastController:
 $router->post('/admin/whatsapp-broadcast/templates', [WhatsAppBroadcastController::class, 'saveTemplate'], $admin);
 $router->post('/admin/whatsapp-broadcast/templates/delete', [WhatsAppBroadcastController::class, 'deleteTemplate'], $admin);
 $router->post('/admin/whatsapp-broadcast/send', [WhatsAppBroadcastController::class, 'send'], $admin);
+$router->get('/admin/push-broadcast', [PushBroadcastController::class, 'index'], $admin);
+$router->get('/admin/push-broadcast/preview', [PushBroadcastController::class, 'preview'], $admin);
+$router->post('/admin/push-broadcast/preview', [PushBroadcastController::class, 'previewForm'], $admin);
+$router->post('/admin/push-broadcast/templates', [PushBroadcastController::class, 'saveTemplate'], $admin);
+$router->post('/admin/push-broadcast/templates/delete', [PushBroadcastController::class, 'deleteTemplate'], $admin);
+$router->post('/admin/push-broadcast/send', [PushBroadcastController::class, 'send'], $admin);
 
 // Branch manager
 $router->get('/branch-manager', [DashboardController::class, 'branchManager'], $manager);

@@ -52,7 +52,7 @@
     </table>
     </div>
 
-    <form method="post" action="<?= e(url('/admin/services/' . $service['id'] . '/items')) ?>" class="stack-form" style="margin-top:1rem">
+    <form method="post" action="<?= e(url('/admin/services/' . $service['id'] . '/items')) ?>" class="stack-form form-panel-nested">
         <?= csrf_field() ?>
         <h4>Add item</h4>
         <div class="grid-2">
@@ -60,7 +60,9 @@
             <label>Price<input type="number" step="0.01" name="price" required></label>
         </div>
         <label>Description<input name="description"></label>
-        <label>Duration<input type="number" name="duration"></label>
-        <button class="btn btn-sm" type="submit">Add item</button>
+        <label>Duration (minutes)<input type="number" name="duration"></label>
+        <div class="form-actions">
+            <button class="btn btn-sm" type="submit">Add item</button>
+        </div>
     </form>
 </section>

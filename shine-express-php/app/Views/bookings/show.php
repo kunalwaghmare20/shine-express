@@ -62,7 +62,7 @@ $actionBase = $base !== '' ? $base . '/bookings/' . $booking['id'] : '/bookings/
 <?php if ($transitions !== [] && in_array(($user['role'] ?? ''), ['SUPER_ADMIN','BRANCH_MANAGER','SERVICE_STAFF','CUSTOMER'], true)): ?>
 <section class="panel">
     <h3>Update status</h3>
-    <form method="post" action="<?= e(url($actionBase . '/status')) ?>" class="inline-form">
+    <form method="post" action="<?= e(url($actionBase . '/status')) ?>" class="inline-form inline-form-bar">
         <?= csrf_field() ?>
         <select name="status" required>
             <?php foreach ($transitions as $to): ?>

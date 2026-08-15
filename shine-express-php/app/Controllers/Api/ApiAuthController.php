@@ -153,4 +153,30 @@ final class ApiAuthController
         $stmt->execute([$user['id']]);
         ApiResponse::success(['user' => ApiAuth::publicUser($stmt->fetch())], 200, 'Profile updated');
     }
+
+    public function changePassword(): void
+    {
+        $user = ApiAuth::user();
+        $current = (string) Request::input('currentPassword');
+        $password = (string) Request::input('newPassword');
+        $confirm = (string) Request::input('confirmPassword');
+
+        if ($current === '' || $password === '') {
+            ApiResponse::error('Current and new password are required', 422);
+        }
+        if (strlen($password) < 6) {
+            ApiResponse::error('New password must be at least 6 characters', 422);
+        }
+        if ($password !== $confirm) {
+            ApiResponse::error('New passwords do not match', 422);
+        }
+        if (empty($user['password_hash']) || !password_verify($current, (string) $user['password_hash'])) {
+            ApiResponse::error('Current password is incorrect', 401);
+        }
+
+        Database::connection()->prepare('UPDATE users SET password_hash = ? WHERE id = ?')
+            ->execute([password_hash($password, PASSWORD_DEFAULT), $user['id']]);
+
+        ApiResponse::success(null, 200, 'Password updated');
+    }
 }

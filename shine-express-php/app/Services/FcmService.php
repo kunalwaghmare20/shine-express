@@ -16,24 +16,76 @@ final class FcmService
 
     public function enabled(): bool
     {
-        return filter_var(env_file('FCM_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN)
-            && $this->projectId() !== ''
-            && $this->clientEmail() !== ''
-            && $this->privateKey() !== '';
+        return $this->setupStatus()['enabled'];
     }
 
-    /** @param array<string, string> $data */
-    public function sendToUser(string $userId, string $title, string $body, array $data = []): void
+    /** @return array{enabled:bool,reason:?string} */
+    public function setupStatus(): array
+    {
+        if (!filter_var(env_file('FCM_ENABLED', 'false'), FILTER_VALIDATE_BOOLEAN)) {
+            return ['enabled' => false, 'reason' => 'Set FCM_ENABLED=true in .env'];
+        }
+        if ($this->projectId() === '') {
+            return ['enabled' => false, 'reason' => 'FCM_PROJECT_ID is missing in .env (or upload storage/fcm-service-account.json)'];
+        }
+        if ($this->clientEmail() === '') {
+            return ['enabled' => false, 'reason' => 'FCM_CLIENT_EMAIL is missing in .env (or upload storage/fcm-service-account.json)'];
+        }
+        if ($this->privateKey() === '') {
+            return [
+                'enabled' => false,
+                'reason' => 'FCM private key is missing. In Firebase Console → Project settings → Service accounts → Generate new private key, '
+                    . 'then upload the JSON file to storage/fcm-service-account.json (or paste FCM_PRIVATE_KEY into .env)',
+            ];
+        }
+
+        return ['enabled' => true, 'reason' => null];
+    }
+
+    /** @param array<string, string> $data
+     * @return array{attempted:int,sent:int,failed:int,skipped_reason:?string}
+     */
+    public function sendToUser(string $userId, string $title, string $body, array $data = []): array
     {
         if (!$this->enabled()) {
-            return;
+            $reason = (string) ($this->setupStatus()['reason'] ?? 'FCM disabled');
+            $this->log('SKIP user=' . $userId . ' reason=' . $reason);
+            return ['attempted' => 0, 'sent' => 0, 'failed' => 0, 'skipped_reason' => $reason];
         }
 
         $stmt = Database::connection()->prepare('SELECT token FROM device_tokens WHERE user_id = ?');
         $stmt->execute([$userId]);
-        foreach ($stmt->fetchAll() as $row) {
-            $this->sendToToken((string) $row['token'], $title, $body, $data);
+        $tokens = array_column($stmt->fetchAll(), 'token');
+        if ($tokens === []) {
+            $this->log('SKIP user=' . $userId . ' reason=no device tokens registered');
+            return ['attempted' => 0, 'sent' => 0, 'failed' => 0, 'skipped_reason' => 'No device tokens'];
         }
+
+        $sent = 0;
+        $failed = 0;
+        foreach ($tokens as $token) {
+            if ($this->sendToToken((string) $token, $title, $body, $data)) {
+                ++$sent;
+            } else {
+                ++$failed;
+            }
+        }
+
+        $this->log(sprintf(
+            'USER user=%s attempted=%d sent=%d failed=%d title=%s',
+            $userId,
+            count($tokens),
+            $sent,
+            $failed,
+            mb_substr($title, 0, 80)
+        ));
+
+        return [
+            'attempted' => count($tokens),
+            'sent' => $sent,
+            'failed' => $failed,
+            'skipped_reason' => null,
+        ];
     }
 
     /** @param array<string, string> $data */
@@ -65,6 +117,10 @@ final class FcmService
             'Authorization: Bearer ' . $accessToken,
             'Content-Type: application/json',
         ]);
+
+        if ($result['ok']) {
+            $this->log('OK token=' . substr($token, 0, 16) . '… title=' . mb_substr($title, 0, 60));
+        }
 
         return $result['ok'];
     }
@@ -132,25 +188,62 @@ final class FcmService
         return $input . '.' . $this->b64url($signature);
     }
 
+    /** @return array<string, mixed>|null */
+    private function serviceAccountJson(): ?array
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached ?: null;
+        }
+
+        $path = STORAGE_PATH . '/fcm-service-account.json';
+        if (!is_file($path)) {
+            $cached = false;
+            return null;
+        }
+
+        $json = json_decode((string) file_get_contents($path), true);
+        if (!is_array($json)) {
+            $cached = false;
+            return null;
+        }
+
+        $cached = $json;
+        return $json;
+    }
+
     private function projectId(): string
     {
-        return trim((string) env_file('FCM_PROJECT_ID', ''));
+        $fromEnv = trim((string) env_file('FCM_PROJECT_ID', ''));
+        if ($fromEnv !== '') {
+            return $fromEnv;
+        }
+
+        $json = $this->serviceAccountJson();
+        return trim((string) ($json['project_id'] ?? ''));
     }
 
     private function clientEmail(): string
     {
-        return trim((string) env_file('FCM_CLIENT_EMAIL', ''));
+        $fromEnv = trim((string) env_file('FCM_CLIENT_EMAIL', ''));
+        if ($fromEnv !== '') {
+            return $fromEnv;
+        }
+
+        $json = $this->serviceAccountJson();
+        return trim((string) ($json['client_email'] ?? ''));
     }
 
     private function privateKey(): string
     {
         $key = (string) env_file('FCM_PRIVATE_KEY', '');
-        if ($key === '' && is_file(STORAGE_PATH . '/fcm-service-account.json')) {
-            $json = json_decode((string) file_get_contents(STORAGE_PATH . '/fcm-service-account.json'), true);
-            if (is_array($json)) {
+        if ($key === '') {
+            $json = $this->serviceAccountJson();
+            if ($json !== null) {
                 return str_replace('\\n', "\n", (string) ($json['private_key'] ?? ''));
             }
         }
+
         return str_replace('\\n', "\n", $key);
     }
 

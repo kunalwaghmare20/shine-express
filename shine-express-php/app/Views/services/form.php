@@ -22,7 +22,7 @@ $action = $isEdit ? url('/admin/services/' . $service['id']) : url('/admin/servi
     </div>
     <label>Rebook reminder (days after completed service)
         <input type="number" name="reminder_days" min="0" value="<?= e($isEdit ? (string) ($service['reminder_days'] ?? 30) : '30') ?>" required>
-        <span class="muted" style="font-size:0.85rem;display:block;margin-top:0.35rem">
+        <span class="form-hint">
             WhatsApp the customer this many days after the service is completed, asking them to book their next appointment.
             Use <strong>0</strong> to disable reminders for this service.
         </span>
