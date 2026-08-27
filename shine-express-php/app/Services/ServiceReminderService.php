@@ -29,7 +29,7 @@ final class ServiceReminderService
 
     public function adminWhatsApp(): string
     {
-        return (string) env_file('SUPPORT_WHATSAPP', '919673522737');
+        return WhatsAppConfig::supportWhatsApp();
     }
 
     /**
@@ -160,12 +160,9 @@ final class ServiceReminderService
         $adminWa = $this->adminWhatsApp();
         $waLink = 'https://wa.me/' . preg_replace('/\D+/', '', $adminWa);
 
-        $template = (string) env_file(
-            'WHATSAPP_REBOOK_MESSAGE',
-            "Hello {name},\n\nThank you for choosing Shine Express for your *{service}* service (booking {booking}).\n\nIt has been {days} days since your last service — now is a great time to book your *next appointment* so your space stays fresh and protected.\n\nReply on WhatsApp or message us at {admin_whatsapp} to schedule:\n{wa_link}\n\n— Shine Express"
-        );
+        $template = WhatsAppConfig::rebookMessage();
 
-        if (trim((string) env_file('WHATSAPP_TEMPLATE_NAME', '')) !== '') {
+        if (WhatsAppConfig::reminderTemplateName() !== '') {
             return implode(' | ', [
                 $name,
                 (string) $b['service_name'],

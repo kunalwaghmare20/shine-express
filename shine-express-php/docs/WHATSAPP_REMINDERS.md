@@ -65,6 +65,13 @@ WHATSAPP_PROVIDER=log
 
 Use `cloud` or `webhook` for real delivery (see previous provider notes). Start with `log` to test.
 
+Admin **WhatsApp broadcast** does **not** use `WHATSAPP_TEMPLATE_NAME`. For Cloud API delivery to customers outside the 24-hour window, approve a Marketing template and set:
+
+```env
+WHATSAPP_BROADCAST_TEMPLATE_NAME=customer_broadcast
+WHATSAPP_BROADCAST_TEMPLATE_PARAMS=first_name,message
+```
+
 ---
 
 ## Cron

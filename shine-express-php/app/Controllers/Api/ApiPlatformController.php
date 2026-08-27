@@ -165,7 +165,7 @@ final class ApiPlatformController
             'recentBookings' => $recent,
             'support' => [
                 'phone' => env_file('SUPPORT_PHONE', '919673522737'),
-                'whatsapp' => env_file('SUPPORT_WHATSAPP', '919673522737'),
+                'whatsapp' => \App\Services\WhatsAppConfig::supportWhatsApp(),
             ],
             'payments' => (new \App\Services\PaymentService())->publicConfig(),
         ]);

@@ -34,9 +34,34 @@
 </section>
 <?php endif; ?>
 
+<?php
+$setup = is_array($setup ?? null) ? $setup : [];
+$setupReady = !empty($setup['ready']);
+$setupReason = (string) ($setup['reason'] ?? '');
+$setupHint = (string) ($setup['hint'] ?? '');
+?>
+<?php if (!$setupReady): ?>
+<div class="alert alert-error">
+    <strong>Cannot send yet.</strong>
+    <?= e($setupReason !== '' ? $setupReason : 'WhatsApp is not configured on this server.') ?>
+    <?php if ($setupHint !== ''): ?>
+        <p class="small" style="margin-top:0.5rem;margin-bottom:0"><?= e($setupHint) ?></p>
+    <?php endif; ?>
+</div>
+<?php elseif ($setupHint !== ''): ?>
+<div class="alert">
+    <?= e($setupHint) ?>
+</div>
+<?php endif; ?>
+
 <?php if ((int) ($preview['sendable_count'] ?? 0) === 0): ?>
 <div class="alert alert-error">
     No customers can receive this broadcast. Add phone numbers or change your selection.
+</div>
+<?php elseif (!$setupReady): ?>
+<div class="panel">
+    <p class="muted">Fix the WhatsApp configuration above, then return here to send.</p>
+    <a class="btn btn-sm" href="<?= e(url('/admin/whatsapp-broadcast')) ?>">← Back to broadcast</a>
 </div>
 <?php else: ?>
 <div class="panel">

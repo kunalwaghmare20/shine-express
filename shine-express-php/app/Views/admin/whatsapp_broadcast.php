@@ -6,15 +6,97 @@
             Business WhatsApp: <strong><?= e($adminWhatsApp) ?></strong>
             · Provider: <code><?= e($provider) ?></code>
             · <?= $enabled ? 'Enabled' : 'Disabled' ?>
+            · <a href="<?= e(url('/admin/whatsapp-settings')) ?>">Settings</a>
         </p>
     </div>
 </section>
 
-<?php if (!$enabled): ?>
+<?php
+$setup = is_array($setup ?? null) ? $setup : [];
+$setupReady = !empty($setup['ready']);
+$setupReason = (string) ($setup['reason'] ?? '');
+$setupHint = (string) ($setup['hint'] ?? '');
+?>
+<?php if (!$setupReady): ?>
 <div class="alert alert-error">
-    WhatsApp is disabled. Set <code>WHATSAPP_ENABLED=true</code> in <code>.env</code>.
-    With <code>WHATSAPP_PROVIDER=log</code>, messages are written to <code>storage/logs/whatsapp.log</code> for testing.
+    <strong>WhatsApp is not ready to send.</strong>
+    <?= e($setupReason !== '' ? $setupReason : 'Open WhatsApp settings and enable sending.') ?>
+    <?php if ($setupHint !== ''): ?>
+        <p class="small" style="margin-top:0.5rem;margin-bottom:0"><?= e($setupHint) ?></p>
+    <?php endif; ?>
 </div>
+<?php elseif ($setupHint !== ''): ?>
+<div class="alert">
+    <?= e($setupHint) ?>
+</div>
+<?php endif; ?>
+
+<div class="panel" style="margin-bottom:1rem">
+    <h2>WhatsApp diagnostics</h2>
+    <ul class="plain-list">
+        <li><span>Enabled</span><strong><?= $enabled ? 'Yes' : 'No' ?></strong></li>
+        <li><span>Provider</span><strong><code><?= e($provider) ?></code></strong></li>
+        <li><span>Broadcast template</span><strong><?= ($broadcastTemplate ?? '') !== '' ? e((string) $broadcastTemplate) : 'Not set — required for promotional sends' ?></strong></li>
+        <li><span>Log file</span><strong><code>storage/logs/whatsapp.log</code></strong></li>
+    </ul>
+    <?php if ($provider === 'cloud'): ?>
+        <p class="muted small" style="margin-bottom:0.5rem">
+            WhatsApp will <strong>not</strong> deliver a typed promotional message unless the customer messaged you in the last 24 hours.
+            The supported way to reach everyone is an approved <strong>Marketing template</strong> — that is not a 24-hour message.
+        </p>
+        <?php if (($broadcastTemplate ?? '') === ''): ?>
+            <ol class="muted small" style="margin:0;padding-left:1.2rem">
+                <li>Open <a href="https://business.facebook.com/" target="_blank" rel="noopener">Meta Business Manager</a> → WhatsApp Manager → Message templates.</li>
+                <li>Create a template named <code>customer_broadcast</code>, category <strong>Marketing</strong>, language <strong>English (en)</strong>.</li>
+                <li>Body:
+                    <pre style="white-space:pre-wrap;margin:0.4rem 0">Hello {{1}},
+
+{{2}}
+
+Reply on WhatsApp to book. — Shine Express</pre>
+                </li>
+                <li>Submit and wait until status is <strong>Approved</strong> (often a few minutes to a day).</li>
+                <li>On <a href="<?= e(url('/admin/whatsapp-settings')) ?>">WhatsApp settings</a> set provider to Cloud API, paste the token and phone number ID, then:
+                    <pre style="white-space:pre-wrap;margin:0.4rem 0">Template name: customer_broadcast
+Language: en
+Body variables: first_name,message</pre>
+                </li>
+            </ol>
+            <p class="muted small" style="margin:0.5rem 0 0">After that, {{1}} is the customer first name and {{2}} is the promotional text you type below. Meta delivers it even if they have not replied recently.</p>
+        <?php else: ?>
+            <p class="muted small" style="margin:0">
+                Sending via Marketing template <code><?= e((string) $broadcastTemplate) ?></code>
+                ({{1}} = first name, {{2}} = the message you type). Customers do not need to have replied in the last 24 hours.
+            </p>
+        <?php endif; ?>
+    <?php endif; ?>
+</div>
+
+<?php if (is_array($lastResult)): ?>
+<section class="panel" style="margin-bottom:1rem">
+    <h2>Last send results</h2>
+    <p class="muted">
+        Total <?= (int) ($lastResult['total'] ?? 0) ?> ·
+        Sent <?= (int) ($lastResult['sent'] ?? 0) ?> ·
+        Failed <?= (int) ($lastResult['failed'] ?? 0) ?> ·
+        Skipped <?= (int) ($lastResult['skipped'] ?? 0) ?>
+    </p>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Customer</th><th>Phone</th><th>Status</th><th>Detail</th></tr></thead>
+            <tbody>
+            <?php foreach (($lastResult['results'] ?? []) as $row): ?>
+                <tr>
+                    <td><?= e($row['customer'] ?? '') ?></td>
+                    <td><?= e($row['phone'] ?? '') ?></td>
+                    <td><?= e($row['status'] ?? '') ?></td>
+                    <td class="muted small"><?= e(mb_substr((string) ($row['detail'] ?? ''), 0, 500)) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</section>
 <?php endif; ?>
 
 <div class="grid-2 panels" style="margin-bottom:1rem">
@@ -76,6 +158,9 @@
             <?php foreach ($placeholders as $i => $ph): ?>
                 <?= $i > 0 ? ' · ' : '' ?><code><?= e($ph) ?></code>
             <?php endforeach; ?>
+            <?php if ($provider === 'cloud'): ?>
+                <br>On WhatsApp this fills Marketing template variable {{2}}. Greeting {{1}} is the customer first name from the approved template — you do not need to write “Hello”.
+            <?php endif; ?>
         </p>
 
         <fieldset class="form-fieldset">
@@ -160,33 +245,6 @@
         </table>
     </div>
 </section>
-
-<?php if (is_array($lastResult)): ?>
-<section class="panel" style="margin-top:1rem">
-    <h2>Last send results</h2>
-    <p class="muted">
-        Total <?= (int) ($lastResult['total'] ?? 0) ?> ·
-        Sent <?= (int) ($lastResult['sent'] ?? 0) ?> ·
-        Failed <?= (int) ($lastResult['failed'] ?? 0) ?> ·
-        Skipped <?= (int) ($lastResult['skipped'] ?? 0) ?>
-    </p>
-    <div class="table-wrap">
-        <table>
-            <thead><tr><th>Customer</th><th>Phone</th><th>Status</th><th>Detail</th></tr></thead>
-            <tbody>
-            <?php foreach (($lastResult['results'] ?? []) as $row): ?>
-                <tr>
-                    <td><?= e($row['customer'] ?? '') ?></td>
-                    <td><?= e($row['phone'] ?? '') ?></td>
-                    <td><?= e($row['status'] ?? '') ?></td>
-                    <td class="muted small"><?= e(mb_substr((string) ($row['detail'] ?? ''), 0, 120)) ?></td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</section>
-<?php endif; ?>
 
 <script>
 (function () {

@@ -4,6 +4,7 @@
         <p class="muted">
             After a service is completed, customers are reminded (per service days) to book their next appointment.
             Business WhatsApp: <strong><?= e($adminWhatsApp) ?></strong>
+            · <a href="<?= e(url('/admin/whatsapp-settings')) ?>">WhatsApp settings</a>
         </p>
     </div>
 </section>

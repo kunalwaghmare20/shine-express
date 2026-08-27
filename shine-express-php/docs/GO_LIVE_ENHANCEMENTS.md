@@ -77,10 +77,29 @@ WHATSAPP_PHONE_NUMBER_ID=123456789012345
 WHATSAPP_TEMPLATE_LANG=en
 ```
 
-Optional template (if Meta requires templates for outbound):
+Optional template for **rebook reminders** (pipe-separated body variables):
 
 ```env
 WHATSAPP_TEMPLATE_NAME=booking_update
+```
+
+**WhatsApp broadcast** (Admin → WhatsApp broadcast) needs a separate **Marketing** template.
+Meta will reject free-form text if the customer has not messaged you in the last 24 hours.
+
+Example template body in Meta Business Manager:
+
+```text
+Hello {{1}},
+
+{{2}}
+
+— Shine Express
+```
+
+```env
+WHATSAPP_BROADCAST_TEMPLATE_NAME=customer_broadcast
+WHATSAPP_BROADCAST_TEMPLATE_LANG=en
+WHATSAPP_BROADCAST_TEMPLATE_PARAMS=first_name,message
 ```
 
 **Support number** (shown in app / rebook messages):

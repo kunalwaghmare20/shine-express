@@ -22,6 +22,7 @@ use App\Controllers\ReportController;
 use App\Controllers\ServiceController;
 use App\Controllers\PushBroadcastController;
 use App\Controllers\WhatsAppBroadcastController;
+use App\Controllers\WhatsAppSettingsController;
 use App\Middleware\AuthMiddleware;
 
 $auth = [AuthMiddleware::class];
@@ -77,6 +78,8 @@ $router->post('/admin/branches/{id}', [BranchController::class, 'update'], $admi
 $router->get('/admin/reports', [ReportController::class, 'index'], $admin);
 $router->get('/admin/reminders', [ReminderController::class, 'index'], $admin);
 $router->post('/admin/reminders/run', [ReminderController::class, 'run'], $admin);
+$router->get('/admin/whatsapp-settings', [WhatsAppSettingsController::class, 'index'], $admin);
+$router->post('/admin/whatsapp-settings', [WhatsAppSettingsController::class, 'save'], $admin);
 $router->get('/admin/whatsapp-broadcast', [WhatsAppBroadcastController::class, 'index'], $admin);
 $router->get('/admin/whatsapp-broadcast/preview', [WhatsAppBroadcastController::class, 'preview'], $admin);
 $router->post('/admin/whatsapp-broadcast/preview', [WhatsAppBroadcastController::class, 'previewForm'], $admin);

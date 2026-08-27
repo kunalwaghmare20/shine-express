@@ -23,17 +23,17 @@ final class WhatsAppBroadcastService
 
     public function adminWhatsApp(): string
     {
-        return (string) env_file('SUPPORT_WHATSAPP', '919673522737');
+        return WhatsAppConfig::supportWhatsApp();
     }
 
     public function defaultTemplate(): string
     {
-        $fromEnv = trim((string) env_file('WHATSAPP_BROADCAST_DEFAULT', ''));
-        if ($fromEnv !== '') {
-            return $fromEnv;
+        $fromDb = trim(WhatsAppConfig::broadcastDefault());
+        if ($fromDb !== '') {
+            return $fromDb;
         }
 
-        return "Hello {first_name},\n\nThank you for being a Shine Express customer. We wanted to share a quick update with you.\n\nReply on WhatsApp at {admin_whatsapp} to book your next service.\n\n— Shine Express";
+        return "We have an update on Shine Express home-care services. Book sofa cleaning, pest control, or your next visit today — reply on WhatsApp to schedule.";
     }
 
     /** @return list<string> */
@@ -194,6 +194,23 @@ final class WhatsAppBroadcastService
      */
     public function send(string $template, string $audience, array $customerIds = []): array
     {
+        $setup = $this->whatsapp->broadcastSetupStatus();
+        if (empty($setup['ready'])) {
+            $reason = (string) ($setup['reason'] ?? 'WhatsApp broadcast is not configured');
+            return [
+                'total' => 0,
+                'sent' => 0,
+                'failed' => 0,
+                'skipped' => 0,
+                'results' => [[
+                    'customer' => '',
+                    'phone' => '',
+                    'status' => 'FAILED',
+                    'detail' => $reason,
+                ]],
+            ];
+        }
+
         $customers = $this->resolveRecipients($audience, $customerIds);
         $results = [];
         $sent = 0;
@@ -227,7 +244,7 @@ final class WhatsAppBroadcastService
             }
 
             $message = $this->personalize($template, $customer);
-            $outcome = $this->whatsapp->send($phone, $message);
+            $outcome = $this->whatsapp->send($phone, $message, null, $this->cloudSendOptions($customer, $message));
 
             if ($outcome['ok']) {
                 ++$sent;
@@ -239,7 +256,7 @@ final class WhatsAppBroadcastService
 
             $results[] = [
                 'customer' => $label,
-                'phone' => $phone,
+                'phone' => $this->whatsapp->normalizePhone($phone),
                 'status' => $status,
                 'detail' => $outcome['response'] ?? $outcome['status'] ?? '',
             ];
@@ -282,5 +299,67 @@ final class WhatsAppBroadcastService
         );
         $stmt->execute($ids);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Broadcasts must not reuse WHATSAPP_TEMPLATE_NAME (rebook reminder template).
+     * Meta rejects session/text messages outside the 24-hour window, so a dedicated
+     * marketing template is required for real Cloud API delivery.
+     *
+     * @return array{as_text?:bool,template_name?:string,template_lang?:string,template_params?:list<string>}
+     */
+    private function cloudSendOptions(array $customer, string $message): array
+    {
+        if ($this->whatsapp->provider() !== 'cloud') {
+            return [];
+        }
+
+        $template = $this->whatsapp->broadcastTemplateName();
+        if ($template === '') {
+            return [];
+        }
+
+        $lang = WhatsAppConfig::broadcastTemplateLang();
+
+        return [
+            'template_name' => $template,
+            'template_lang' => $lang,
+            'template_params' => $this->broadcastTemplateParams($customer, $message),
+        ];
+    }
+
+    /** @return list<string> */
+    private function broadcastTemplateParams(array $customer, string $message): array
+    {
+        $first = trim((string) ($customer['first_name'] ?? ''));
+        $last = trim((string) ($customer['last_name'] ?? ''));
+        $name = trim($first . ' ' . $last);
+        if ($name === '') {
+            $name = 'Customer';
+        }
+        if ($first === '') {
+            $first = explode(' ', $name)[0] ?: 'there';
+        }
+
+        $map = [
+            'first_name' => $first,
+            'name' => $name,
+            'message' => $message,
+            'phone' => (string) ($customer['phone'] ?? ''),
+            'admin_whatsapp' => $this->adminWhatsApp(),
+        ];
+
+        $spec = WhatsAppConfig::broadcastTemplateParams();
+        $keys = array_values(array_filter(array_map('trim', explode(',', $spec))));
+        if ($keys === []) {
+            $keys = ['message'];
+        }
+
+        $params = [];
+        foreach ($keys as $key) {
+            $params[] = $map[$key] ?? $key;
+        }
+
+        return $params;
     }
 }

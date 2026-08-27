@@ -60,3 +60,11 @@ CREATE TABLE IF NOT EXISTS push_broadcast_templates (
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   INDEX idx_push_templates_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ========== 009_app_settings.sql ==========
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key VARCHAR(80) NOT NULL PRIMARY KEY,
+  setting_value TEXT NULL,
+  updated_by VARCHAR(36) NULL,
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

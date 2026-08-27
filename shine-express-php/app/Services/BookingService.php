@@ -166,6 +166,17 @@ final class BookingService extends BaseService
             throw new RuntimeException("Invalid status transition: {$from} → {$to}");
         }
 
+        if ($to === BookingStatus::ASSIGNED || $to === BookingStatus::ACCEPTED) {
+            $assigned = $this->activeAssignmentCount($bookingId);
+            if ($assigned === 0) {
+                throw new RuntimeException(
+                    $to === BookingStatus::ASSIGNED
+                        ? 'Use Assign staff to pick employees. Changing status to Assigned does not assign anyone.'
+                        : 'Assign staff first. A job cannot be accepted until someone is assigned.'
+                );
+            }
+        }
+
         $fields = ['status = ?'];
         $params = [$to];
 
@@ -199,20 +210,32 @@ final class BookingService extends BaseService
     }
 
     /** @param list<string> $employeeIds */
-    public function assignStaff(string $bookingId, array $employeeIds, string $actorUserId, ?string $primaryId = null): void
-    {
+    public function assignStaff(
+        string $bookingId,
+        array $employeeIds,
+        string $actorUserId,
+        ?string $primaryId = null,
+        bool $allowAnyBranch = false
+    ): void {
         $booking = $this->fetchOne('SELECT * FROM bookings WHERE id = ?', [$bookingId]);
         if (!$booking) {
             throw new RuntimeException('Booking not found');
         }
 
-        $allowed = [BookingStatus::PENDING, BookingStatus::CONFIRMED, BookingStatus::ASSIGNED, BookingStatus::REJECTED];
-        if (!in_array($booking['status'], $allowed, true)) {
-            throw new RuntimeException('Staff can only be assigned in pending/confirmed/assigned/rejected state');
+        $blocked = [BookingStatus::STARTED, BookingStatus::COMPLETED, BookingStatus::CANCELLED];
+        if (in_array($booking['status'], $blocked, true)) {
+            throw new RuntimeException('Staff can only be assigned before the job has started');
         }
 
+        if ($primaryId) {
+            $employeeIds[] = $primaryId;
+        }
+        $employeeIds = array_values(array_unique(array_filter(
+            array_map('strval', $employeeIds),
+            fn ($id) => $id !== ''
+        )));
         if ($employeeIds === []) {
-            throw new RuntimeException('Select at least one staff member');
+            throw new RuntimeException('Select at least one staff member (tick the name, not only Primary contact)');
         }
 
         $placeholders = implode(',', array_fill(0, count($employeeIds), '?'));
@@ -222,37 +245,66 @@ final class BookingService extends BaseService
         if (count($staff) !== count($employeeIds)) {
             throw new RuntimeException('One or more employees not found');
         }
-        foreach ($staff as $emp) {
-            if ($emp['branch_id'] !== $booking['branch_id']) {
-                throw new RuntimeException('All assigned staff must belong to the booking branch');
+        if (!$allowAnyBranch) {
+            foreach ($staff as $emp) {
+                if ($emp['branch_id'] !== $booking['branch_id']) {
+                    throw new RuntimeException('All assigned staff must belong to the booking branch');
+                }
             }
         }
 
-        $this->db->prepare('DELETE FROM booking_assignments WHERE booking_id = ?')->execute([$bookingId]);
-        $primary = $primaryId ?? $employeeIds[0];
-        $ins = $this->db->prepare(
-            'INSERT INTO booking_assignments (id, booking_id, employee_id, assigned_by_id, is_primary) VALUES (?,?,?,?,?)'
-        );
-        foreach ($employeeIds as $eid) {
-            $ins->execute([generate_id(), $bookingId, $eid, $actorUserId, $eid === $primary ? 1 : 0]);
-        }
-
+        $primary = $primaryId && in_array($primaryId, $employeeIds, true) ? $primaryId : $employeeIds[0];
         $from = $booking['status'];
-        if ($from !== BookingStatus::ASSIGNED) {
+
+        $this->db->beginTransaction();
+        try {
+            $this->db->prepare('DELETE FROM booking_assignments WHERE booking_id = ?')->execute([$bookingId]);
+            $ins = $this->db->prepare(
+                'INSERT INTO booking_assignments (id, booking_id, employee_id, assigned_by_id, is_primary) VALUES (?,?,?,?,?)'
+            );
+            foreach ($employeeIds as $eid) {
+                $ins->execute([generate_id(), $bookingId, $eid, $actorUserId !== '' ? $actorUserId : null, $eid === $primary ? 1 : 0]);
+            }
+
             if ($from === BookingStatus::PENDING) {
                 $this->db->prepare('UPDATE bookings SET status = ? WHERE id = ?')->execute([BookingStatus::CONFIRMED, $bookingId]);
                 $this->recordHistory($bookingId, BookingStatus::PENDING, BookingStatus::CONFIRMED, $actorUserId, 'Auto-confirmed before assignment');
                 $from = BookingStatus::CONFIRMED;
             }
-            if (!BookingStatus::canTransition($from, BookingStatus::ASSIGNED)) {
-                throw new RuntimeException("Cannot assign from {$from}");
+
+            if ($from !== BookingStatus::ASSIGNED) {
+                $this->db->prepare('UPDATE bookings SET status = ?, assigned_at = NOW(3) WHERE id = ?')
+                    ->execute([BookingStatus::ASSIGNED, $bookingId]);
+                $this->recordHistory($bookingId, $from, BookingStatus::ASSIGNED, $actorUserId, 'Staff assigned');
+            } else {
+                $this->db->prepare('UPDATE bookings SET assigned_at = NOW(3) WHERE id = ?')->execute([$bookingId]);
             }
-            $this->db->prepare('UPDATE bookings SET status = ?, assigned_at = NOW(3) WHERE id = ?')
-                ->execute([BookingStatus::ASSIGNED, $bookingId]);
-            $this->recordHistory($bookingId, $from, BookingStatus::ASSIGNED, $actorUserId, 'Staff assigned');
+
+            $this->db->commit();
+        } catch (\Throwable $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            if ($e instanceof RuntimeException) {
+                throw $e;
+            }
+            throw new RuntimeException('Could not assign staff: ' . $e->getMessage(), 0, $e);
         }
 
-        (new NotificationService())->bookingAssigned($bookingId);
+        try {
+            (new NotificationService())->bookingAssigned($bookingId);
+        } catch (\Throwable) {
+            // Assignment is already saved; push/WhatsApp failure must not hide it.
+        }
+    }
+
+    private function activeAssignmentCount(string $bookingId): int
+    {
+        $stmt = $this->db->prepare(
+            'SELECT COUNT(*) FROM booking_assignments WHERE booking_id = ? AND rejected_at IS NULL'
+        );
+        $stmt->execute([$bookingId]);
+        return (int) $stmt->fetchColumn();
     }
 
     /** @param array<string, mixed> $booking */

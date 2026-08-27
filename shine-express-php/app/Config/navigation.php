@@ -15,6 +15,7 @@ return [
         ['title' => 'Services', 'href' => '/admin/services'],
         ['title' => 'Branches', 'href' => '/admin/branches'],
         ['title' => 'Reports', 'href' => '/admin/reports'],
+        ['title' => 'WhatsApp settings', 'href' => '/admin/whatsapp-settings'],
         ['title' => 'WhatsApp rebook', 'href' => '/admin/reminders'],
         ['title' => 'WhatsApp broadcast', 'href' => '/admin/whatsapp-broadcast'],
         ['title' => 'Push broadcast', 'href' => '/admin/push-broadcast'],

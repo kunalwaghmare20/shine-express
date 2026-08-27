@@ -36,6 +36,8 @@ final class WhatsAppBroadcastController extends Controller
             'user' => Auth::user(),
             'enabled' => $wa->enabled(),
             'provider' => $wa->provider(),
+            'setup' => $wa->broadcastSetupStatus(),
+            'broadcastTemplate' => $wa->broadcastTemplateName(),
             'adminWhatsApp' => $svc->adminWhatsApp(),
             'customers' => $svc->listCustomers($q !== '' ? $q : null),
             'q' => $q,
@@ -118,6 +120,7 @@ final class WhatsAppBroadcastController extends Controller
         }
 
         $svc = new WhatsAppBroadcastService();
+        $wa = new WhatsAppService();
         $preview = $svc->buildPreview(
             (string) $draft['message'],
             (string) $draft['audience'],
@@ -129,6 +132,7 @@ final class WhatsAppBroadcastController extends Controller
             'user' => Auth::user(),
             'draft' => $draft,
             'preview' => $preview,
+            'setup' => $wa->broadcastSetupStatus(),
             'adminWhatsApp' => $svc->adminWhatsApp(),
         ], 'layouts/dashboard');
     }
@@ -163,6 +167,13 @@ final class WhatsAppBroadcastController extends Controller
             $this->redirect('/admin/whatsapp-broadcast/preview');
         }
 
+        $setup = (new WhatsAppService())->broadcastSetupStatus();
+        if (empty($setup['ready'])) {
+            flash_error((string) ($setup['reason'] ?? 'WhatsApp is not configured on this server'));
+            Session::flash('whatsapp_broadcast_template', $draft['message']);
+            $this->redirect('/admin/whatsapp-broadcast');
+        }
+
         $result = (new WhatsAppBroadcastService())->send(
             $draft['message'],
             $draft['audience'],
@@ -173,13 +184,18 @@ final class WhatsAppBroadcastController extends Controller
         Session::flash('whatsapp_broadcast_template', $draft['message']);
         Session::flash('whatsapp_broadcast_result', $result);
 
-        flash_success(sprintf(
+        $summary = sprintf(
             'Broadcast finished: %d recipient(s), %d sent, %d failed, %d skipped',
             $result['total'],
             $result['sent'],
             $result['failed'],
             $result['skipped']
-        ));
+        );
+        if ((int) $result['sent'] === 0) {
+            flash_error($summary . '. See Last send results below for the error from WhatsApp.');
+        } else {
+            flash_success($summary);
+        }
 
         $this->redirect('/admin/whatsapp-broadcast');
     }

@@ -92,8 +92,8 @@ final class BookingController extends Controller
         $assignments = Database::connection()->prepare(
             'SELECT ba.*, u.first_name, u.last_name, e.employee_code
              FROM booking_assignments ba
-             JOIN employees e ON e.id = ba.employee_id
-             JOIN users u ON u.id = e.user_id
+             LEFT JOIN employees e ON e.id = ba.employee_id
+             LEFT JOIN users u ON u.id = e.user_id
              WHERE ba.booking_id = ?'
         );
         $assignments->execute([$id]);
@@ -104,14 +104,22 @@ final class BookingController extends Controller
         $history->execute([$id]);
 
         $staff = [];
-        if (in_array(Auth::role(), ['SUPER_ADMIN', 'BRANCH_MANAGER'], true)) {
-            $staffStmt = Database::connection()->prepare(
-                'SELECT e.id, e.employee_code, u.first_name, u.last_name,
-                        e.current_latitude, e.current_longitude, e.is_available, e.location_updated_at
-                 FROM employees e JOIN users u ON u.id = e.user_id
-                 WHERE e.deleted_at IS NULL AND e.branch_id = ? AND u.is_active = 1'
-            );
-            $staffStmt->execute([$booking['branch_id']]);
+        $canAssign = in_array(Auth::role(), ['SUPER_ADMIN', 'BRANCH_MANAGER'], true);
+        if ($canAssign) {
+            $staffSql = 'SELECT e.id, e.employee_code, e.branch_id, u.first_name, u.last_name,
+                        e.current_latitude, e.current_longitude, e.is_available, e.location_updated_at,
+                        br.name AS branch_name
+                 FROM employees e
+                 JOIN users u ON u.id = e.user_id
+                 JOIN branches br ON br.id = e.branch_id
+                 WHERE e.deleted_at IS NULL AND u.is_active = 1';
+            $staffParams = [];
+            if (Auth::role() === 'BRANCH_MANAGER') {
+                $staffSql .= ' AND e.branch_id = ?';
+                $staffParams[] = $booking['branch_id'];
+            }
+            $staffStmt = Database::connection()->prepare($staffSql);
+            $staffStmt->execute($staffParams);
             $staff = $staffStmt->fetchAll();
 
             $bookingLat = isset($booking['latitude']) ? (float) $booking['latitude'] : null;
@@ -129,7 +137,13 @@ final class BookingController extends Controller
             }
             unset($member);
 
-            usort($staff, static function (array $a, array $b): int {
+            $bookingBranchId = $booking['branch_id'];
+            usort($staff, static function (array $a, array $b) use ($bookingBranchId): int {
+                $sameA = ($a['branch_id'] ?? '') === $bookingBranchId ? 0 : 1;
+                $sameB = ($b['branch_id'] ?? '') === $bookingBranchId ? 0 : 1;
+                if ($sameA !== $sameB) {
+                    return $sameA <=> $sameB;
+                }
                 $availA = !empty($a['is_available']) ? 0 : 1;
                 $availB = !empty($b['is_available']) ? 0 : 1;
                 if ($availA !== $availB) {
@@ -163,6 +177,7 @@ final class BookingController extends Controller
             'primaryEmployeeId' => $primaryId,
             'history' => $history->fetchAll(),
             'staff' => $staff,
+            'canAssign' => $canAssign,
             'transitions' => BookingStatus::TRANSITIONS[$booking['status']] ?? [],
             'user' => Auth::user(),
             'base' => $this->portalBase(),
@@ -185,7 +200,7 @@ final class BookingController extends Controller
                 Request::input('cancellation_reason')
             );
             flash_success('Status updated');
-        } catch (RuntimeException $e) {
+        } catch (\Throwable $e) {
             flash_error($e->getMessage());
         }
         $this->redirect($this->portalBase() . '/bookings/' . $id);
@@ -202,16 +217,21 @@ final class BookingController extends Controller
         if (!is_array($employeeIds)) {
             $employeeIds = $employeeIds ? [$employeeIds] : [];
         }
+        $primaryId = Request::input('primary_employee_id');
+        if ($primaryId) {
+            $employeeIds[] = (string) $primaryId;
+        }
 
         try {
             (new BookingService())->assignStaff(
                 $id,
                 array_values($employeeIds),
                 (string) Auth::id(),
-                Request::input('primary_employee_id')
+                $primaryId !== null && $primaryId !== '' ? (string) $primaryId : null,
+                Auth::role() === 'SUPER_ADMIN'
             );
             flash_success('Staff assigned');
-        } catch (RuntimeException $e) {
+        } catch (\Throwable $e) {
             flash_error($e->getMessage());
         }
         $this->redirect($this->portalBase() . '/bookings/' . $id);

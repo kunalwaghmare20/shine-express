@@ -109,6 +109,16 @@ final class FcmService
                 ],
                 'data' => array_map('strval', $data),
                 'android' => ['priority' => 'HIGH'],
+                'apns' => [
+                    'headers' => [
+                        'apns-priority' => '10',
+                    ],
+                    'payload' => [
+                        'aps' => [
+                            'sound' => 'default',
+                        ],
+                    ],
+                ],
             ],
         ];
 
