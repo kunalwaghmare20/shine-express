@@ -276,6 +276,53 @@ final class WhatsAppBroadcastService
     }
 
     /**
+     * One-to-one send from the customers list / profile.
+     *
+     * @return array{ok:bool,status:string,detail:string,preview:string}
+     */
+    public function sendToCustomer(string $customerId, string $messageTemplate): array
+    {
+        $messageTemplate = trim($messageTemplate);
+        if ($messageTemplate === '') {
+            return ['ok' => false, 'status' => 'FAILED', 'detail' => 'Message is required', 'preview' => ''];
+        }
+        if (mb_strlen($messageTemplate) > 4096) {
+            return ['ok' => false, 'status' => 'FAILED', 'detail' => 'Message is too long (max 4096 characters)', 'preview' => ''];
+        }
+
+        $setup = $this->whatsapp->broadcastSetupStatus();
+        if (empty($setup['ready'])) {
+            return [
+                'ok' => false,
+                'status' => 'FAILED',
+                'detail' => (string) ($setup['reason'] ?? 'WhatsApp is not configured'),
+                'preview' => '',
+            ];
+        }
+
+        $customers = $this->resolveRecipients('selected', [$customerId]);
+        if ($customers === []) {
+            return ['ok' => false, 'status' => 'FAILED', 'detail' => 'Customer not found', 'preview' => ''];
+        }
+
+        $customer = $customers[0];
+        $phone = trim((string) ($customer['phone'] ?? ''));
+        if ($phone === '') {
+            return ['ok' => false, 'status' => 'FAILED', 'detail' => 'This customer has no phone number', 'preview' => ''];
+        }
+
+        $message = $this->personalize($messageTemplate, $customer);
+        $outcome = $this->whatsapp->send($phone, $message, null, $this->cloudSendOptions($customer, $message));
+
+        return [
+            'ok' => !empty($outcome['ok']),
+            'status' => !empty($outcome['ok']) ? 'SENT' : 'FAILED',
+            'detail' => (string) ($outcome['response'] ?? $outcome['status'] ?? ''),
+            'preview' => $message,
+        ];
+    }
+
+    /**
      * @param list<string> $customerIds
      * @return list<array<string, mixed>>
      */

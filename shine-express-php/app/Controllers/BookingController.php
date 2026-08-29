@@ -203,6 +203,11 @@ final class BookingController extends Controller
         } catch (\Throwable $e) {
             flash_error($e->getMessage());
         }
+
+        $returnTo = (string) Request::input('return_to', '');
+        if (in_array($returnTo, ['/admin', '/branch-manager'], true)) {
+            $this->redirect($returnTo);
+        }
         $this->redirect($this->portalBase() . '/bookings/' . $id);
     }
 

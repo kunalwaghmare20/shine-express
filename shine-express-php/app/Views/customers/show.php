@@ -4,7 +4,22 @@
             <h3><?= e($customer['first_name'] . ' ' . $customer['last_name']) ?></h3>
             <p class="muted"><?= e($customer['email']) ?> · <?= e((string) $customer['phone']) ?></p>
         </div>
-        <a class="btn btn-sm" href="<?= e(url($base . '/customers/' . $customer['id'] . '/edit')) ?>">Edit</a>
+        <div class="topbar-actions">
+            <?php
+            $phone = trim((string) ($customer['phone'] ?? ''));
+            $name = trim(($customer['first_name'] ?? '') . ' ' . ($customer['last_name'] ?? ''));
+            ?>
+            <button type="button" class="btn btn-sm btn-whatsapp js-wa-open" <?= $phone === '' ? 'disabled' : '' ?>
+                title="<?= $phone === '' ? 'No phone number' : 'Send WhatsApp' ?>"
+                data-id="<?= e($customer['id']) ?>"
+                data-name="<?= e($name) ?>"
+                data-first="<?= e((string) ($customer['first_name'] ?? '')) ?>"
+                data-email="<?= e((string) ($customer['email'] ?? '')) ?>"
+                data-phone="<?= e($phone) ?>">
+                <?= ui_icon('whatsapp') ?> WhatsApp
+            </button>
+            <a class="btn btn-sm" href="<?= e(url($base . '/customers/' . $customer['id'] . '/edit')) ?>">Edit</a>
+        </div>
     </div>
 </section>
 <div class="grid-2 panels">
@@ -25,3 +40,7 @@
         </ul>
     </section>
 </div>
+<?php
+$returnTo = $base . '/customers/' . $customer['id'];
+require APP_PATH . '/Views/customers/_whatsapp_modal.php';
+?>

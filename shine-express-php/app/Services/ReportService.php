@@ -69,7 +69,40 @@ final class ReportService extends BaseService
             $params
         );
 
-        return compact('today', 'pending', 'completed', 'revenue', 'customers', 'employees', 'statusBreakdown', 'popular', 'monthly');
+        $bookingSelect = 'SELECT b.id, b.booking_number, b.scheduled_date, b.scheduled_time, b.status, b.total_amount,
+                                 s.name AS service_name,
+                                 CONCAT(u.first_name, " ", u.last_name) AS customer_name
+                          FROM bookings b
+                          JOIN services s ON s.id = b.service_id
+                          JOIN customers c ON c.id = b.customer_id
+                          JOIN users u ON u.id = c.user_id';
+
+        $todayBookings = $this->rows(
+            $bookingSelect . " WHERE DATE(b.scheduled_date) = CURDATE(){$branchSql}
+                               ORDER BY b.scheduled_time ASC, b.created_at DESC
+                               LIMIT 12",
+            $params
+        );
+        $pendingBookings = $this->rows(
+            $bookingSelect . " WHERE b.status = 'PENDING'{$branchSql}
+                               ORDER BY b.created_at DESC
+                               LIMIT 12",
+            $params
+        );
+
+        return compact(
+            'today',
+            'pending',
+            'completed',
+            'revenue',
+            'customers',
+            'employees',
+            'statusBreakdown',
+            'popular',
+            'monthly',
+            'todayBookings',
+            'pendingBookings'
+        );
     }
 
     /** @param array<string, mixed> $params */

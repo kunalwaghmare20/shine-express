@@ -53,6 +53,7 @@ $router->get('/admin/customers', [CustomerController::class, 'index'], $admin);
 $router->get('/admin/customers/create', [CustomerController::class, 'createForm'], $admin);
 $router->post('/admin/customers', [CustomerController::class, 'store'], $admin);
 $router->get('/admin/customers/{id}/edit', [CustomerController::class, 'editForm'], $admin);
+$router->post('/admin/customers/{id}/whatsapp', [CustomerController::class, 'sendWhatsApp'], $admin);
 $router->post('/admin/customers/{id}', [CustomerController::class, 'update'], $admin);
 $router->get('/admin/customers/{id}', [CustomerController::class, 'show'], $admin);
 $router->get('/admin/employees', [EmployeeController::class, 'index'], $admin);
@@ -103,6 +104,7 @@ $router->post('/branch-manager/bookings/{id}/status', [BookingController::class,
 $router->post('/branch-manager/bookings/{id}/assign', [BookingController::class, 'assign'], $manager);
 $router->get('/branch-manager/customers', [CustomerController::class, 'index'], $manager);
 $router->get('/branch-manager/customers/{id}/edit', [CustomerController::class, 'editForm'], $manager);
+$router->post('/branch-manager/customers/{id}/whatsapp', [CustomerController::class, 'sendWhatsApp'], $manager);
 $router->post('/branch-manager/customers/{id}', [CustomerController::class, 'update'], $manager);
 $router->get('/branch-manager/customers/{id}', [CustomerController::class, 'show'], $manager);
 $router->get('/branch-manager/staff', [EmployeeController::class, 'index'], $manager);

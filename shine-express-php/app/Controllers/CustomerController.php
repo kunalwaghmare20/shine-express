@@ -8,6 +8,8 @@ use App\Core\Auth;
 use App\Core\Controller;
 use App\Core\Database;
 use App\Core\Request;
+use App\Services\WhatsAppBroadcastService;
+use App\Services\WhatsAppService;
 
 final class CustomerController extends Controller
 {
@@ -28,12 +30,17 @@ final class CustomerController extends Controller
         $sql .= ' ORDER BY c.created_at DESC LIMIT 100';
         $stmt = Database::connection()->prepare($sql);
         $stmt->execute($params);
+        $wa = new WhatsAppBroadcastService();
         $this->view('customers/index', [
             'title' => 'Customers',
             'customers' => $stmt->fetchAll(),
             'q' => $q,
             'user' => Auth::user(),
             'base' => $this->basePath(),
+            'savedTemplates' => $wa->listSavedTemplates(),
+            'placeholders' => $wa->placeholders(),
+            'adminWhatsApp' => $wa->adminWhatsApp(),
+            'waReady' => (new WhatsAppService())->broadcastSetupStatus(),
         ], 'layouts/dashboard');
     }
 
@@ -54,6 +61,7 @@ final class CustomerController extends Controller
         );
         $bookings->execute([$id]);
 
+        $wa = new WhatsAppBroadcastService();
         $this->view('customers/show', [
             'title' => $customer['first_name'] . ' ' . $customer['last_name'],
             'customer' => $customer,
@@ -61,6 +69,10 @@ final class CustomerController extends Controller
             'bookings' => $bookings->fetchAll(),
             'user' => Auth::user(),
             'base' => $this->basePath(),
+            'savedTemplates' => $wa->listSavedTemplates(),
+            'placeholders' => $wa->placeholders(),
+            'adminWhatsApp' => $wa->adminWhatsApp(),
+            'waReady' => (new WhatsAppService())->broadcastSetupStatus(),
         ], 'layouts/dashboard');
     }
 
@@ -176,6 +188,50 @@ final class CustomerController extends Controller
             flash_error('Could not update customer (email may exist).');
             $this->redirect($this->basePath() . '/customers/' . $id . '/edit');
         }
+    }
+
+    public function sendWhatsApp(string $id): void
+    {
+        $base = $this->basePath();
+        $returnTo = (string) Request::input('return_to', '');
+        $allowed = [$base . '/customers', $base . '/customers/' . $id];
+        if (!in_array($returnTo, $allowed, true)) {
+            $returnTo = $base . '/customers';
+        }
+
+        if (!Request::isPost() || !verify_csrf(Request::input('_csrf'))) {
+            flash_error('Invalid request');
+            $this->redirect($returnTo);
+        }
+
+        $customer = $this->find($id);
+        if (!$customer) {
+            flash_error('Customer not found');
+            $this->redirect($base . '/customers');
+        }
+
+        $svc = new WhatsAppBroadcastService();
+        $source = (string) Request::input('source', 'custom');
+        $message = trim((string) Request::input('message', ''));
+
+        if ($source === 'template') {
+            $templateId = trim((string) Request::input('template_id', ''));
+            $saved = $templateId !== '' ? $svc->getSavedTemplate($templateId) : null;
+            if (!$saved) {
+                flash_error('Select a saved message template');
+                $this->redirect($returnTo);
+            }
+            $message = (string) $saved['body'];
+        }
+
+        $result = $svc->sendToCustomer($id, $message);
+        if (!empty($result['ok'])) {
+            flash_success('WhatsApp message sent to ' . trim($customer['first_name'] . ' ' . $customer['last_name']));
+        } else {
+            flash_error('WhatsApp not sent: ' . (string) ($result['detail'] ?? 'Unknown error'));
+        }
+
+        $this->redirect($returnTo);
     }
 
     /** @return array<string, mixed>|null */

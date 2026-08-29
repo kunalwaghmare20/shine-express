@@ -138,6 +138,47 @@ a { color: var(--brand); text-decoration: none; }
 .panel-danger strong { color: #991b1b; }
 a.wa-link { color: #128c41; font-weight: 600; }
 a.wa-link:hover { color: #0d6b32; }
+.wa-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #25d366;
+  color: #fff;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.wa-icon-btn .ui-icon { width: 1.05rem; height: 1.05rem; }
+.wa-icon-btn:hover { background: #1da851; color: #fff; }
+.wa-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+body.modal-open { overflow: hidden; }
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4rem 1rem 1.5rem;
+  background: rgba(15, 23, 42, 0.45);
+  overflow: auto;
+}
+.modal-backdrop.is-open { display: flex; }
+.modal-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: min(36rem, 100%);
+  padding: 1.15rem 1.25rem 1.25rem;
+}
 .broadcast-preview-message {
   white-space: pre-wrap;
   word-break: break-word;
@@ -591,6 +632,23 @@ button.link-btn, .link-btn {
 .stat span { color: var(--muted); font-size: 0.85rem; }
 .stat strong { display: block; font-size: 1.45rem; margin-top: 0.35rem; color: var(--brand-dark); }
 .panels { margin-top: 1rem; }
+.dashboard-col { display: grid; gap: 1rem; align-content: start; }
+.dashboard-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+.dashboard-list-head h3 { margin: 0; }
+.panel .table-wrap {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  margin: 0 -0.35rem;
+}
+.dashboard-accept { display: inline-flex; margin: 0; }
+.actions-cell .dashboard-accept { vertical-align: middle; }
 .panel h3, .panel h4 { margin-top: 0; }
 .panel-unread { border-color: rgba(14,165,233,0.4); background: #f0f9ff; }
 .plain-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.55rem; }
