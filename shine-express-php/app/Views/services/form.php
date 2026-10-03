@@ -3,7 +3,7 @@
 $isEdit = is_array($service ?? null);
 $action = $isEdit ? url('/admin/services/' . $service['id']) : url('/admin/services');
 ?>
-<form method="post" action="<?= e($action) ?>" class="stack-form panel">
+<form method="post" action="<?= e($action) ?>" class="stack-form panel" enctype="multipart/form-data">
     <?= csrf_field() ?>
     <label>Category
         <select name="category_id" required>
@@ -28,12 +28,35 @@ $action = $isEdit ? url('/admin/services/' . $service['id']) : url('/admin/servi
         </span>
     </label>
     <label>Sort order<input type="number" name="sort_order" value="<?= e($isEdit ? (string) $service['sort_order'] : '0') ?>"></label>
+    <label>Cover image (website)
+        <input type="file" name="cover_image" accept="image/jpeg,image/png,image/webp">
+        <span class="form-hint">Optional photo for the public site. JPEG / PNG / WebP, max 4 MB.</span>
+    </label>
+    <?php if ($isEdit && !empty($service['cover_image'])): ?>
+        <p class="muted small">Current cover: <a href="<?= e(public_file_url((string) $service['cover_image'])) ?>" target="_blank" rel="noopener">view</a></p>
+    <?php endif; ?>
     <label class="form-switch">
         <input type="checkbox" name="is_active" value="1" <?= !$isEdit || !empty($service['is_active']) ? 'checked' : '' ?>>
         <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
         <span class="form-switch-label">
             <strong>Active</strong>
             <span class="muted small">Visible to customers when booking</span>
+        </span>
+    </label>
+    <label class="form-switch">
+        <input type="checkbox" name="show_on_website" value="1" <?= !$isEdit || !isset($service['show_on_website']) || !empty($service['show_on_website']) ? 'checked' : '' ?>>
+        <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+        <span class="form-switch-label">
+            <strong>Show on website</strong>
+            <span class="muted small">List this service on the public marketing site</span>
+        </span>
+    </label>
+    <label class="form-switch">
+        <input type="checkbox" name="is_featured" value="1" <?= $isEdit && !empty($service['is_featured']) ? 'checked' : '' ?>>
+        <span class="form-switch-track"><span class="form-switch-thumb"></span></span>
+        <span class="form-switch-label">
+            <strong>Featured on home</strong>
+            <span class="muted small">Highlight on the public homepage</span>
         </span>
     </label>
     <div class="form-actions">

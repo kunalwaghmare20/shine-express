@@ -19,6 +19,12 @@ return [
         ['title' => 'WhatsApp rebook', 'href' => '/admin/reminders'],
         ['title' => 'WhatsApp broadcast', 'href' => '/admin/whatsapp-broadcast'],
         ['title' => 'Push broadcast', 'href' => '/admin/push-broadcast'],
+        ['heading' => 'Website'],
+        ['title' => 'Website settings', 'href' => '/admin/website/settings'],
+        ['title' => 'Pages', 'href' => '/admin/website/pages'],
+        ['title' => 'Gallery', 'href' => '/admin/website/gallery'],
+        ['title' => 'Testimonials', 'href' => '/admin/website/testimonials'],
+        ['title' => 'Enquiries', 'href' => '/admin/website/enquiries'],
         ['title' => 'Notifications', 'href' => '/notifications'],
     ],
     'BRANCH_MANAGER' => [

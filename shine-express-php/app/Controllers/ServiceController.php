@@ -75,23 +75,54 @@ final class ServiceController extends Controller
         $name = trim((string) Request::input('name'));
         $id = generate_id();
         $reminderDays = max(0, (int) Request::input('reminder_days', 30));
+        $featured = Request::input('is_featured') ? 1 : 0;
+        $showWebsite = Request::input('show_on_website') ? 1 : 0;
+        $cover = null;
+        try {
+            $cover = save_public_image('cover_image', 'website');
+        } catch (\RuntimeException $e) {
+            flash_error($e->getMessage());
+            $this->redirect('/admin/services/create');
+        }
 
-        Database::connection()->prepare(
-            'INSERT INTO services (id, category_id, name, slug, description, base_price, duration, reminder_days, images, sort_order, is_active)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?)'
-        )->execute([
-            $id,
-            Request::input('category_id'),
-            $name,
-            slugify($name) . '-' . substr($id, 0, 4),
-            Request::input('description'),
-            Request::input('base_price'),
-            (int) Request::input('duration'),
-            $reminderDays,
-            json_encode([]),
-            (int) Request::input('sort_order', 0),
-            Request::input('is_active') ? 1 : 0,
-        ]);
+        try {
+            Database::connection()->prepare(
+                'INSERT INTO services (id, category_id, name, slug, description, base_price, duration, reminder_days, images, cover_image, sort_order, is_active, is_featured, show_on_website)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            )->execute([
+                $id,
+                Request::input('category_id'),
+                $name,
+                slugify($name) . '-' . substr($id, 0, 4),
+                Request::input('description'),
+                Request::input('base_price'),
+                (int) Request::input('duration'),
+                $reminderDays,
+                json_encode([]),
+                $cover,
+                (int) Request::input('sort_order', 0),
+                Request::input('is_active') ? 1 : 0,
+                $featured,
+                $showWebsite,
+            ]);
+        } catch (\Throwable $e) {
+            Database::connection()->prepare(
+                'INSERT INTO services (id, category_id, name, slug, description, base_price, duration, reminder_days, images, sort_order, is_active)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?)'
+            )->execute([
+                $id,
+                Request::input('category_id'),
+                $name,
+                slugify($name) . '-' . substr($id, 0, 4),
+                Request::input('description'),
+                Request::input('base_price'),
+                (int) Request::input('duration'),
+                $reminderDays,
+                json_encode([]),
+                (int) Request::input('sort_order', 0),
+                Request::input('is_active') ? 1 : 0,
+            ]);
+        }
         flash_success('Service created');
         $this->redirect('/admin/services/' . $id);
     }
@@ -127,22 +158,56 @@ final class ServiceController extends Controller
 
         $name = trim((string) Request::input('name'));
         $reminderDays = max(0, (int) Request::input('reminder_days', 30));
+        $featured = Request::input('is_featured') ? 1 : 0;
+        $showWebsite = Request::input('show_on_website') ? 1 : 0;
+        $cover = null;
+        try {
+            $cover = save_public_image('cover_image', 'website');
+        } catch (\RuntimeException $e) {
+            flash_error($e->getMessage());
+            $this->redirect('/admin/services/' . $id . '/edit');
+        }
 
-        Database::connection()->prepare(
-            'UPDATE services SET category_id=?, name=?, slug=?, description=?, base_price=?, duration=?,
-             reminder_days=?, sort_order=?, is_active=? WHERE id=?'
-        )->execute([
-            Request::input('category_id'),
-            $name,
-            slugify($name) . '-' . substr($id, 0, 4),
-            Request::input('description'),
-            Request::input('base_price'),
-            (int) Request::input('duration'),
-            $reminderDays,
-            (int) Request::input('sort_order', 0),
-            Request::input('is_active') ? 1 : 0,
-            $id,
-        ]);
+        try {
+            $sql = 'UPDATE services SET category_id=?, name=?, slug=?, description=?, base_price=?, duration=?,
+             reminder_days=?, sort_order=?, is_active=?, is_featured=?, show_on_website=?';
+            $params = [
+                Request::input('category_id'),
+                $name,
+                slugify($name) . '-' . substr($id, 0, 4),
+                Request::input('description'),
+                Request::input('base_price'),
+                (int) Request::input('duration'),
+                $reminderDays,
+                (int) Request::input('sort_order', 0),
+                Request::input('is_active') ? 1 : 0,
+                $featured,
+                $showWebsite,
+            ];
+            if ($cover !== null) {
+                $sql .= ', cover_image=?';
+                $params[] = $cover;
+            }
+            $sql .= ' WHERE id=?';
+            $params[] = $id;
+            Database::connection()->prepare($sql)->execute($params);
+        } catch (\Throwable $e) {
+            Database::connection()->prepare(
+                'UPDATE services SET category_id=?, name=?, slug=?, description=?, base_price=?, duration=?,
+                 reminder_days=?, sort_order=?, is_active=? WHERE id=?'
+            )->execute([
+                Request::input('category_id'),
+                $name,
+                slugify($name) . '-' . substr($id, 0, 4),
+                Request::input('description'),
+                Request::input('base_price'),
+                (int) Request::input('duration'),
+                $reminderDays,
+                (int) Request::input('sort_order', 0),
+                Request::input('is_active') ? 1 : 0,
+                $id,
+            ]);
+        }
         flash_success('Service updated');
         $this->redirect('/admin/services/' . $id);
     }

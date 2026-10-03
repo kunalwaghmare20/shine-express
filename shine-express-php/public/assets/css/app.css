@@ -581,6 +581,15 @@ button.link-btn, .link-btn {
 .sidebar-brand strong { color: #fff; }
 .sidebar-brand span { color: #7dd3fc; font-size: 0.8rem; text-transform: capitalize; }
 .sidebar-nav { display: grid; gap: 0.25rem; }
+.sidebar-nav-label {
+  color: #7dd3fc;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.9rem 0.75rem 0.2rem;
+  margin-top: 0.2rem;
+  font-weight: 700;
+}
 .sidebar-nav a {
   color: #e0f2fe;
   padding: 0.65rem 0.75rem;

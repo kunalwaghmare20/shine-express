@@ -42,6 +42,8 @@ assert_true(BookingStatus::TRANSITIONS[BookingStatus::COMPLETED] === [], 'COMPLE
 assert_true(BookingStatus::label(BookingStatus::ON_THE_WAY) === 'On The Way', 'label ON_THE_WAY');
 
 assert_true(slugify('House Cleaning') === 'house-cleaning', 'slugify');
+assert_true(public_file_url('https://cdn.example/x.jpg') === 'https://cdn.example/x.jpg', 'public_file_url keeps absolute');
+assert_true(str_contains(public_file_url('uploads/website/a.jpg'), 'uploads/website/a.jpg'), 'public_file_url relative');
 assert_true(strlen(generate_id()) === 36, 'generate_id length');
 assert_true(money_format_inr(1499) === '₹1,499.00' || str_contains(money_format_inr(1499), '1,499'), 'money format');
 

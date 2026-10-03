@@ -1,0 +1,5 @@
+# Deny PHP in uploaded files
+<FilesMatch "\.(php|phtml|php\d)$">
+  Require all denied
+</FilesMatch>
+Options -Indexes

@@ -128,6 +128,67 @@ function slugify(string $value): string
     return trim($value, '-') ?: 'item';
 }
 
+/** Public URL for a stored upload path or already-absolute URL. */
+function public_file_url(?string $path): string
+{
+    $path = trim((string) $path);
+    if ($path === '') {
+        return '';
+    }
+    if (preg_match('#^https?://#i', $path) === 1) {
+        return $path;
+    }
+
+    return url(ltrim($path, '/'));
+}
+
+/**
+ * Save an uploaded image under public/uploads/{subdir}/.
+ * Returns a relative path (uploads/...) or null when no file was sent.
+ */
+function save_public_image(string $field, string $subdir = 'website', int $maxBytes = 4194304): ?string
+{
+    if (!isset($_FILES[$field]) || !is_array($_FILES[$field])) {
+        return null;
+    }
+    $file = $_FILES[$field];
+    $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE || ($error === UPLOAD_ERR_OK && (int) ($file['size'] ?? 0) === 0)) {
+        return null;
+    }
+    if ($error !== UPLOAD_ERR_OK) {
+        throw new RuntimeException('Image upload failed. Please try again.');
+    }
+    if ((int) ($file['size'] ?? 0) > $maxBytes) {
+        throw new RuntimeException('Image must be 4 MB or smaller.');
+    }
+
+    $ext = strtolower((string) pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+        throw new RuntimeException('Use a JPEG, PNG, or WebP image.');
+    }
+
+    $tmp = (string) ($file['tmp_name'] ?? '');
+    $info = $tmp !== '' ? @getimagesize($tmp) : false;
+    if ($info === false) {
+        throw new RuntimeException('That file does not look like an image.');
+    }
+
+    $subdir = trim($subdir, '/');
+    $dir = (defined('PUBLIC_PATH') ? PUBLIC_PATH : dirname(__DIR__, 2) . '/public') . '/uploads/' . $subdir;
+    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) {
+        throw new RuntimeException('Could not create the upload folder.');
+    }
+
+    $safeExt = $ext === 'jpeg' ? 'jpg' : $ext;
+    $filename = date('YmdHis') . '_' . bin2hex(random_bytes(4)) . '.' . $safeExt;
+    if (!move_uploaded_file($tmp, $dir . '/' . $filename)) {
+        throw new RuntimeException('Could not save the image.');
+    }
+
+    return 'uploads/' . $subdir . '/' . $filename;
+}
+
 /** Normalize phone to digits; prepend 91 for 10-digit Indian mobiles. */
 function phone_digits(string $phone): string
 {

@@ -32,9 +32,19 @@ if (Auth::id()) {
         </div>
         <nav class="sidebar-nav">
             <?php foreach ($items as $item): ?>
+                <?php if (!empty($item['heading'])): ?>
+                    <div class="sidebar-nav-label"><?= e((string) $item['heading']) ?></div>
+                    <?php continue; ?>
+                <?php endif; ?>
                 <?php
-                $href = $item['href'];
-                $active = $path === $href || ($href !== '/' && str_starts_with($path, $href));
+                $href = (string) ($item['href'] ?? '');
+                $shortHomes = ['/admin', '/branch-manager', '/staff'];
+                $active = $path === $href
+                    || (
+                        $href !== '/'
+                        && !in_array($href, $shortHomes, true)
+                        && str_starts_with($path, $href . '/')
+                    );
                 ?>
                 <a class="<?= $active ? 'active' : '' ?>" href="<?= e(url($href)) ?>"><?= e($item['title']) ?></a>
             <?php endforeach; ?>

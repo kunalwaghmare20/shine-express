@@ -14,7 +14,7 @@ use App\Controllers\CustomerController;
 use App\Controllers\DashboardController;
 use App\Controllers\EmployeeController;
 use App\Controllers\HealthController;
-use App\Controllers\HomeController;
+use App\Website\Controllers\MarketingController;
 use App\Controllers\NotificationController;
 use App\Controllers\ProfileController;
 use App\Controllers\ReminderController;
@@ -23,6 +23,7 @@ use App\Controllers\ServiceController;
 use App\Controllers\PushBroadcastController;
 use App\Controllers\WhatsAppBroadcastController;
 use App\Controllers\WhatsAppSettingsController;
+use App\Website\Controllers\WebsiteController;
 use App\Middleware\AuthMiddleware;
 
 $auth = [AuthMiddleware::class];
@@ -32,8 +33,15 @@ $adminOrManager = [AuthMiddleware::class, 'role:SUPER_ADMIN,BRANCH_MANAGER'];
 $staff = [AuthMiddleware::class, 'role:SERVICE_STAFF'];
 $customer = [AuthMiddleware::class, 'role:CUSTOMER'];
 
-$router->get('/', [HomeController::class, 'index']);
+$router->get('/', [MarketingController::class, 'home']);
 $router->get('/health', [HealthController::class, 'index']);
+$router->get('/services', [MarketingController::class, 'services']);
+$router->get('/services/{slug}', [MarketingController::class, 'service']);
+$router->get('/about', [MarketingController::class, 'about']);
+$router->get('/gallery', [MarketingController::class, 'gallery']);
+$router->get('/contact', [MarketingController::class, 'contact']);
+$router->post('/contact', [MarketingController::class, 'submitEnquiry']);
+$router->get('/p/{slug}', [MarketingController::class, 'cmsPage']);
 
 $router->get('/login', [AuthController::class, 'showLogin']);
 $router->post('/login', [AuthController::class, 'login']);
@@ -93,6 +101,24 @@ $router->post('/admin/push-broadcast/preview', [PushBroadcastController::class, 
 $router->post('/admin/push-broadcast/templates', [PushBroadcastController::class, 'saveTemplate'], $admin);
 $router->post('/admin/push-broadcast/templates/delete', [PushBroadcastController::class, 'deleteTemplate'], $admin);
 $router->post('/admin/push-broadcast/send', [PushBroadcastController::class, 'send'], $admin);
+
+$router->get('/admin/website/settings', [WebsiteController::class, 'settings'], $admin);
+$router->post('/admin/website/settings', [WebsiteController::class, 'saveSettings'], $admin);
+$router->get('/admin/website/pages', [WebsiteController::class, 'pages'], $admin);
+$router->get('/admin/website/pages/create', [WebsiteController::class, 'createPageForm'], $admin);
+$router->post('/admin/website/pages', [WebsiteController::class, 'storePage'], $admin);
+$router->get('/admin/website/pages/{id}/edit', [WebsiteController::class, 'editPageForm'], $admin);
+$router->post('/admin/website/pages/{id}', [WebsiteController::class, 'updatePage'], $admin);
+$router->post('/admin/website/pages/{id}/delete', [WebsiteController::class, 'deletePage'], $admin);
+$router->get('/admin/website/gallery', [WebsiteController::class, 'gallery'], $admin);
+$router->post('/admin/website/gallery', [WebsiteController::class, 'storeGallery'], $admin);
+$router->post('/admin/website/gallery/{id}', [WebsiteController::class, 'updateGallery'], $admin);
+$router->post('/admin/website/gallery/{id}/delete', [WebsiteController::class, 'deleteGallery'], $admin);
+$router->get('/admin/website/testimonials', [WebsiteController::class, 'testimonials'], $admin);
+$router->post('/admin/website/testimonials', [WebsiteController::class, 'storeTestimonial'], $admin);
+$router->post('/admin/website/testimonials/{id}', [WebsiteController::class, 'updateTestimonial'], $admin);
+$router->post('/admin/website/testimonials/{id}/delete', [WebsiteController::class, 'deleteTestimonial'], $admin);
+$router->get('/admin/website/enquiries', [WebsiteController::class, 'enquiries'], $admin);
 
 // Branch manager
 $router->get('/branch-manager', [DashboardController::class, 'branchManager'], $manager);
